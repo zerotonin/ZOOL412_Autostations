@@ -162,6 +162,48 @@ class UserExperiments:
             raise RuntimeError("Inventory not initialized.")
         return inventory
 
+    @staticmethod
+    def log_experiment(session: Session, user_id: int, subject_species: str,
+                       autostation_name: str, experiment_type: str,
+                       wait_weeks: int = 1) -> Experiment:
+        """
+        Creates and logs a new Experiment in the database.
+
+        Parameters
+        ----------
+        session : Session
+            SQLAlchemy session object.
+        user_id : int
+            ID of the user submitting the experiment.
+        species : str
+            Species the experiment is run on (e.g., 'animals_51u6').
+        autostation : str
+            The name of the autostation used.
+        experiment_type : str
+            The mode of the experiment (e.g., 'DGE Analysis').
+        wait_weeks : int, optional
+            Number of weeks until experiment result is ready.
+
+        Returns
+        -------
+        Experiment
+            The created and flushed experiment object.
+        """
+        
+        exp = Experiment(
+            user_id=user_id,
+            autostation_name=autostation_name,
+            experiment_type=experiment_type,
+            subject_species=subject_species,
+            date=date.today(),
+            time=datetime.now().time(),
+            wait_weeks=wait_weeks,
+            is_complete=False,
+        )
+        session.add(exp)
+        session.flush()
+        return exp
+
 
 
     # Experiment functions
@@ -235,18 +277,14 @@ class UserExperiments:
         inventory.credits -= ocs_cost
 
         # Log experiment
-        exp = Experiment(
+        exp = UserExperiments.log_experiment(
+            session=session,
             user_id=user_id,
             autostation_name="GeneWeaver",
             experiment_type="DGE Analysis",
             subject_species=species,  
-            date=date.today(),
-            time=datetime.now().time(),
-            wait_weeks=2,
-            is_complete=False,
+            wait_weeks=2
         )
-        session.add(exp)
-        session.flush()
 
         gexp = GeneWeaverExperiment(
             experiment_id=exp.id,
@@ -272,48 +310,7 @@ class UserExperiments:
         session.commit()
         print(f"[✔] GeneWeaver DGE experiment booked. Total cost: {ocs_cost} chuan.")
 
-    @staticmethod
-    def log_experiment(
-        session: Session,
-        user_id: int,
-        species: str,
-        autostation: str,
-        experiment_type: str,
-        wait_weeks: int = 1,
-    ) -> Experiment:
-        """
-        Creates and logs a new Experiment in the database.
-
-        Parameters
-        ----------
-        session : Session
-            SQLAlchemy session object.
-        user_id : int
-            ID of the user submitting the experiment.
-        species : str
-            Species the experiment is run on (e.g., 'animals_51u6').
-        autostation : str
-            The name of the autostation used.
-        experiment_type : str
-            The mode of the experiment (e.g., 'DGE Analysis').
-        wait_weeks : int, optional
-            Number of weeks until experiment result is ready.
-
-        Returns
-        -------
-        Experiment
-            The created and flushed experiment object.
-        """
-        exp = UserExperiments.log_experiment(
-            session=session,
-            user_id=user_id,
-            autostation_name=autostation,
-            experiment_type=experiment_type,
-            subject_species=species,
-            wait_weeks=wait_weeks,
-        )
-        return exp
-
+    
 
 
     @staticmethod
@@ -503,3 +500,104 @@ class UserExperiments:
         session.add(visual)
         session.commit()
         print(f"[✔] Intraspectra visual experiment booked successfully.")
+
+    @staticmethod
+    def run_intraspectra_rt(user_id: int, form_data: dict, session: Session) -> None:
+        """
+        Run a Resonance Tomography experiment on the Intraspectra Iris Mark II.
+        Validates resources, handles ZeroPoint cartridge, calculates OCS cost.
+        """
+        inventory = UserExperiments.get_inventory(session)
+
+        species = form_data["subject_species"]
+        subject_count = form_data["subject_count"]
+        volume_type = form_data["volume_capture_type"]  # "Static_Volume" or "Dynamic_Volume_Series"
+        is_custom = form_data.get("target_is_custom", False)
+        number_of_volumes = form_data.get("number_of_volumes", 1)
+
+        # 🧮 Shifts required
+        base_per_2_shifts = 10 if volume_type == "Static_Volume" else 5
+        shifts_required = math.ceil(subject_count / base_per_2_shifts) * 2
+        if is_custom:
+            shifts_required += 2  # add +2 for custom targets
+
+        animal_shifts = shifts_required * subject_count
+
+        # 🧮 Volumes for OCS: assume 1 volume per subject if static, else subject * number_of_volumes
+        total_volumes = (
+            subject_count if volume_type == "Static_Volume"
+            else subject_count * number_of_volumes
+        )
+
+        ocs_jobs, ocs_cost = UserExperiments.calculate_ocs_cost(
+            session=session,
+            unit_count=total_volumes,
+            units_per_job=10
+        )
+
+        # 🧪 Cartridge check
+        if inventory.zeropoint_cartridge < 1:
+            print("[❌] Not enough ZeroPoint cartridges available.")
+            return
+
+        # 🐁 Animal availability
+        if not UserExperiments.check_animal_required(inventory, species, animal_shifts):
+            return
+
+        if not UserExperiments.check_ta_shifts_required(inventory, shifts_required):
+            print("❌ Not enough TA shifts.")
+            return
+
+        if inventory.credits < ocs_cost:
+            print(f"[❌] Not enough credits for OCS compute (need {ocs_cost}, have {inventory.credits}).")
+            return
+
+        # ✅ Dry Run
+        print("\n[💡] Intraspectra Resonance Tomography — Dry Run")
+        print("===================================================")
+        print(f"🧪 User ID:             {user_id}")
+        print(f"📸 Subjects:            {subject_count}")
+        print(f"🧠 Shifts Required:     {shifts_required}")
+        print(f"🐁 Animal FTE Required: {(animal_shifts / 30):.2f}")
+        print(f"🧪 Cartridge Required:  1 ZeroPoint")
+        print(f"🧠 OCS Units (Volumes): {total_volumes}")
+        print(f"🖥️ OCS Jobs:            {ocs_jobs}")
+        print(f"💴 OCS Compute Cost:    {ocs_cost} chuan")
+        print("===================================================")
+        confirm = input("Proceed with booking this experiment? [Y/n] ").strip().lower()
+
+        if confirm != "" and confirm != "y":
+            print("🚫 Experiment not booked.")
+            return
+
+        # Deduct resources
+        inventory.zeropoint_cartridge -= 1
+        UserExperiments.deduct_ta_shifts(inventory, shifts_required)
+        UserExperiments.deduct_animals(inventory, species, animal_shifts)
+        inventory.credits -= ocs_cost
+
+        # Log experiment
+        exp = UserExperiments.log_experiment(
+            session=session,
+            user_id=user_id,
+            autostation_name="Intraspectra",
+            experiment_type="Resonance Tomography",
+            subject_species=species,
+            wait_weeks=2
+        )
+
+        rt = IntraspectraExperiment(
+            experiment_id=exp.id,
+            mode="rt",
+            subject_count=subject_count,
+            region_of_interest=form_data["region_of_interest"],
+            target_substance=form_data["target_substance"],
+            target_is_custom=is_custom,
+            volume_capture_type=volume_type,
+            number_of_volumes=number_of_volumes,
+            volume_capture_rate=form_data.get("volume_capture_rate"),
+            cartridge_used=ArticleEnum.ZEROPOINT_CARTRIDGE.value
+        )
+        session.add(rt)
+        session.commit()
+        print(f"[✔] Intraspectra Resonance Tomography experiment booked successfully.")

@@ -162,6 +162,24 @@ def test_intraspectra_visual():
             form_data=form_data,
             session=session
         )
+def test_intraspectra_rt():
+    with Session(engine) as session:
+        form_data = {
+            "subject_species": "animals_51u6",
+            "subject_count": 5,
+            "target_substance": "BioFluid_Oxygenation",
+            "target_is_custom": False,
+            "volume_capture_type": "Static_Volume",
+            "region_of_interest": "Thoracic Ganglion Cluster",
+            "volume_capture_rate": 0.5,  # only needed for dynamic
+            "number_of_volumes": 20
+        }
+
+        UserExperiments.run_intraspectra_rt(
+            user_id=1,
+            form_data=form_data,
+            session=session
+        )
 
 if __name__ == "__main__":
     re_initialize_database()
@@ -180,4 +198,5 @@ if __name__ == "__main__":
     test_geneweaver_dge()
     test_advance_one_week()
     test_intraspectra_visual()
+    test_intraspectra_rt()
     test_geneweaver_viral()
