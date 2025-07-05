@@ -70,9 +70,9 @@ def test_advance_one_week():
     with Session(engine) as session:
         AdminActions.advance_one_week(session)
 
-def test_hunting():
+def test_hunting(species):
     with Session(engine) as session:
-        UserActions.collect_animals(user_id=1, species=AnimalSpecies.U51_M, session=session)
+        UserActions.collect_animals(user_id=1, species=species, session=session)
 
 
 if __name__ == "__main__":
@@ -86,4 +86,7 @@ if __name__ == "__main__":
     # test_advance_one_week()
     # test_juicing()
     # test_advance_one_week()
-    test_hunting()
+    test_hunting(AnimalSpecies.U51_M)
+    test_hunting(AnimalSpecies.U51)
+
+    test_advance_one_week()
