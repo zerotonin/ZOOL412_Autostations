@@ -51,11 +51,68 @@ class UserExperiments:
                 break
 
     @staticmethod
-    def check_animal_availability(inventory: Inventory, species: str, required: int) -> bool:
+    def check_animal_required(inventory: Inventory, species: str, shifts_required: float) -> bool:
+        """
+        Checks whether enough animal availability (in FTEs) exists for a given species.
+        
+        Each animal provides 30 shifts (1.0 FTE). This function converts required shifts
+        into FTEs, then checks whether the inventory has enough available.
+
+        Parameters
+        ----------
+        inventory : Inventory
+            The current inventory instance from the database.
+        species : str
+            The target species, matching the inventory field naming scheme.
+        shifts_required : float
+            Total number of shifts needed in this experiment.
+
+        Returns
+        -------
+        bool
+            True if sufficient animal FTEs exist; False otherwise.
+        """
         field = f"{species}_available"
-        if hasattr(inventory, field):
-            return getattr(inventory, field) >= required
+        if not hasattr(inventory, field):
+            print(f"[❌] Invalid species field: '{field}' not found in Inventory.")
+            return False
+
+        available = getattr(inventory, field)
+        required_fte = shifts_required / 30.0
+
+        if available >= required_fte:
+            return True
+
+        print(
+            f"[❌] Not enough animals for species '{species}': "
+            f"need {required_fte:.2f} FTE, have {available:.2f} FTE"
+        )
         return False
+
+
+    @staticmethod
+    def deduct_animals(inventory: Inventory, species: str, shifts_required: float) -> None:
+        """
+        Deducts animal usage in FTEs from inventory based on the number of shifts used.
+
+        Parameters
+        ----------
+        inventory : Inventory
+            The current inventory instance from the database.
+        species : str
+            The target species for deduction.
+        shifts_required : float
+            The number of shifts the animals contributed.
+        """
+        field = f"{species}_available"
+        if not hasattr(inventory, field):
+            raise ValueError(f"Invalid species field: '{field}'")
+
+        current = getattr(inventory, field)
+        used_fte = shifts_required / 30.0
+        setattr(inventory, field, current - used_fte)
+
+        print(f"[✔] Deducted {used_fte:.2f} FTE from {species}. Remaining: {current - used_fte:.2f}")
 
     @staticmethod
     def deduct_credits(inventory: Inventory, amount: float) -> bool:
@@ -117,12 +174,17 @@ class UserExperiments:
         """
         inventory = UserExperiments.get_inventory(session)
 
-
+        species = form_data["subject_species"]
         groups = form_data["groups"]
         total_samples = sum(g["subject_count"] for g in groups)
         shifts_required = math.ceil(total_samples / 5)
         max_sequences = form_data["max_sequences"]
         fold_threshold = form_data["fold_change_threshold"]
+        animal_shifts =shifts_required*total_samples
+
+        # 🐁 Animal availability check
+        if not UserExperiments.check_animal_required(inventory, species, animal_shifts):
+            return
 
         # 🧪 Cartridge check
         if inventory.xatty_cartridge < 1:
@@ -172,6 +234,7 @@ class UserExperiments:
         # Deduct resources
         inventory.xatty_cartridge -= 1
         UserExperiments.deduct_ta_shifts(inventory, shifts_required)
+        UserExperiments.deduct_animals(inventory, "animals_51u6", animal_shifts)
         inventory.credits -= ocs_cost
 
         # Log experiment

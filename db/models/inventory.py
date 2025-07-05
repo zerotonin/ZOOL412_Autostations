@@ -42,10 +42,10 @@ class Inventory(Base):
     animals_c248_s_max = Column(Integer)
     animals_c248_b_max = Column(Integer)
     # Animals that are currently available
-    animals_51u6_available = Column(Integer)
-    animals_51u6_m_available = Column(Integer)
-    animals_c248_s_available = Column(Integer)
-    animals_c248_b_available = Column(Integer)
+    animals_51u6_available = Column(Float, default=0.0)
+    animals_51u6_m_available = Column(Float, default=0.0)
+    animals_c248_s_available = Column(Float, default=0.0)
+    animals_c248_b_available = Column(Float, default=0.0)
 
     # Equipment
     xatty_cartridge = Column(Integer)
