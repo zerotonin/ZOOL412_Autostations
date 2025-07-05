@@ -15,6 +15,12 @@ def initialize_database():
     """Create tables in the SQLite database if they don't exist."""
     Base.metadata.create_all(engine)
     print("Database initialized with all tables.")
+
+def re_initialize_database():
+    """Create tables in the SQLite database if they don't exist."""
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
+    print("Database initialized with all tables.")
     
 def seed_initial_inventory():
     with Session(engine) as session:
@@ -40,7 +46,7 @@ def test_order():
 
 
 if __name__ == "__main__":
-    initialize_database()
+    re_initialize_database()
     seed_initial_inventory() 
     seed_test_users()
     seed_prices()
