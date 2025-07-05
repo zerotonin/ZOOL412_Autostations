@@ -94,6 +94,18 @@ class UserExperiments:
 
         return jobs, jobs * int(item.chuan_cost)
 
+    @staticmethod
+    def get_inventory(session: Session) -> Inventory:
+        """
+        Retrieves the singleton Inventory object from the database.
+        Raises an error if not initialized.
+        """
+        inventory = session.query(Inventory).first()
+        if not inventory:
+            raise RuntimeError("Inventory not initialized.")
+        return inventory
+
+
 
     # Experiment functions
 
@@ -103,9 +115,8 @@ class UserExperiments:
         Run a DGE Analysis on the GeneWeaver autostation.
         Compute cost is handled via KPI Orbital Compute Suite (OCS).
         """
-        inventory = session.query(Inventory).first()
-        if not inventory:
-            raise RuntimeError("Inventory not initialized.")
+        inventory = UserExperiments.get_inventory(session)
+
 
         groups = form_data["groups"]
         total_samples = sum(g["subject_count"] for g in groups)
@@ -209,9 +220,8 @@ class UserExperiments:
         Runs a Viral Vector Gene Modification experiment on the GeneWeaver Autostation.
         Validates and deducts resources before creating experiment and group entries.
         """
-        inventory = session.query(Inventory).first()
-        if not inventory:
-            raise RuntimeError("Inventory not initialized.")
+        inventory = UserExperiments.get_inventory(session)
+
 
         groups = form_data["groups"]
         total_animals = sum(g["subject_count"] for g in groups)
@@ -292,9 +302,7 @@ class UserExperiments:
         Run a Visual Data Acquisition experiment on the Intraspectra Iris Mark II.
         Validates resources and calculates OCS cost. Asks user confirmation.
         """
-        inventory = session.query(Inventory).first()
-        if not inventory:
-            raise RuntimeError("Inventory not initialized.")
+        inventory = UserExperiments.get_inventory(session)
 
         # Inputs
         subject_count = form_data["subject_count"]
