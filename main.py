@@ -1,19 +1,22 @@
 # main.py
-from sqlalchemy.orm import Session
 
+# Base imports for SQLite and SQLAlchemy
+from sqlalchemy.orm import Session
 from db.base import Base, engine
+# Import all models associated with purchasing, inventory, and users
 from db.models.inventory import Inventory
 from db.models.user import User
 from db.models.order import Order
-from db.models.experiment import Experiment
 from db.models.item_catalog import ItemCatalog
-from db.models.geneweaver_experiment import GeneWeaverExperiment
-from db.models.geneweaver_group import GeneWeaverGroup
 from db.models.order import ArticleEnum
 from db.models.acquisition import AcquisitionType
 from db.models.hunting import AnimalSpecies
-
-
+# Import all models associated with experiments
+from db.models.experiment import Experiment
+from db.models.geneweaver_experiment import GeneWeaverExperiment
+from db.models.geneweaver_group import GeneWeaverGroup
+from db.models.intraspectra_experiment import IntraspectraExperiment
+# Import all user actions and admin actions
 from db.user_experiments import UserExperiments
 from db.user_actions import UserActions
 from db.admin_actions import AdminActions
