@@ -23,6 +23,11 @@ class Inventory(Base):
     ta_nitro_shifts = Column(Integer)
     ta_helene_shifts = Column(Integer)
     ta_carnival_shifts = Column(Integer)
+    # Technical assistance death risk
+    ta_saltos_risk = Column(Float, default=0.0)
+    ta_nitro_risk = Column(Float, default=0.0)
+    ta_helene_risk = Column(Float, default=0.0)
+    ta_carnival_risk = Column(Float, default=0.0)
     # Technical assistance shifts booster
     juice = Column(Integer)
 
