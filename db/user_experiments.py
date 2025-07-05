@@ -16,6 +16,54 @@ from db.models.intraspectra_experiment import IntraspectraExperiment
 
 class UserExperiments:
 
+    # Static sub-routines for user experiment functions
+    @staticmethod
+    def check_ta_shifts_required(inventory: Inventory, required: int) -> bool:
+        total = sum(
+            getattr(inventory, f)
+            for f in [
+                "ta_saltos_shifts",
+                "ta_nitro_shifts",
+                "ta_helene_shifts",
+                "ta_carnival_shifts",
+            ]
+        )
+        return total >= required
+
+    @staticmethod
+    def deduct_ta_shifts(inventory: Inventory, required: int) -> None:
+        remaining = required
+        for field in [
+            "ta_saltos_shifts",
+            "ta_nitro_shifts",
+            "ta_helene_shifts",
+            "ta_carnival_shifts",
+        ]:
+            available = getattr(inventory, field)
+            used = min(available, remaining)
+            setattr(inventory, field, available - used)
+            remaining -= used
+            if remaining <= 0:
+                break
+
+    @staticmethod
+    def check_animal_availability(inventory: Inventory, species: str, required: int) -> bool:
+        field = f"{species}_available"
+        if hasattr(inventory, field):
+            return getattr(inventory, field) >= required
+        return False
+
+    @staticmethod
+    def deduct_credits(inventory: Inventory, amount: float) -> bool:
+        if inventory.credits < amount:
+            return False
+        inventory.credits -= amount
+        return True
+
+
+
+
+
     @staticmethod
     def run_geneweaver_dge_analysis(user_id: int, form_data: dict, session: Session) -> None:
         """
@@ -38,18 +86,10 @@ class UserExperiments:
             print("[❌] Not enough XATTY cartridges available.")
             return
 
-        total_shifts_available = sum(
-            getattr(inventory, field)
-            for field in [
-                "ta_saltos_shifts",
-                "ta_nitro_shifts",
-                "ta_helene_shifts",
-                "ta_carnival_shifts",
-            ]
-        )
-        if total_shifts_available < shifts_required:
-            print(f"[❌] Not enough TA shifts (need {shifts_required}, have {total_shifts_available}).")
+        if not UserExperiments.check_ta_shifts_required(inventory, shifts_required):
+            print("❌ Not enough TA shifts.")
             return
+
 
         compute_cost = (
             total_samples * max_sequences
@@ -77,19 +117,7 @@ class UserExperiments:
         inventory.xatty_cartridge -= 1
 
         # Deduct shifts (greedy)
-        remaining = shifts_required
-        for field in [
-            "ta_saltos_shifts",
-            "ta_nitro_shifts",
-            "ta_helene_shifts",
-            "ta_carnival_shifts",
-        ]:
-            available = getattr(inventory, field)
-            used = min(available, remaining)
-            setattr(inventory, field, available - used)
-            remaining -= used
-            if remaining == 0:
-                break
+        UserExperiments.deduct_ta_shifts(inventory, shifts_required)
 
         # Deduct compute cost from credits
         if inventory.credits < compute_cost:
@@ -156,18 +184,10 @@ class UserExperiments:
             print("[❌] Not enough XATTY cartridges available.")
             return
 
-        total_shifts_available = sum(
-            getattr(inventory, f)
-            for f in [
-                "ta_saltos_shifts",
-                "ta_nitro_shifts",
-                "ta_helene_shifts",
-                "ta_carnival_shifts",
-            ]
-        )
-        if total_shifts_available < shifts_required:
-            print(f"[❌] Not enough TA shifts (need {shifts_required}, have {total_shifts_available}).")
+        if not UserExperiments.check_ta_shifts_required(inventory, shifts_required):
+            print("❌ Not enough TA shifts.")
             return
+
 
         print("\n[💡] GeneWeaver Viral Vector Modification — Dry Run")
         print("===================================================")
@@ -186,19 +206,8 @@ class UserExperiments:
         # Deduct resources
         inventory.xatty_cartridge -= 1
 
-        remaining = shifts_required
-        for field in [
-            "ta_saltos_shifts",
-            "ta_nitro_shifts",
-            "ta_helene_shifts",
-            "ta_carnival_shifts",
-        ]:
-            available = getattr(inventory, field)
-            used = min(available, remaining)
-            setattr(inventory, field, available - used)
-            remaining -= used
-            if remaining == 0:
-                break
+        UserExperiments.deduct_ta_shifts(inventory, shifts_required)
+
 
         # Log experiment
         exp = Experiment(
@@ -274,19 +283,10 @@ class UserExperiments:
         ocs_jobs = math.ceil(total_frames / 1000)
         ocs_cost = ocs_jobs * 1000
 
-        # Check TA shifts
-        total_shifts_available = sum(
-            getattr(inventory, f)
-            for f in [
-                "ta_saltos_shifts",
-                "ta_nitro_shifts",
-                "ta_helene_shifts",
-                "ta_carnival_shifts",
-            ]
-        )
-        if total_shifts_available < shifts_required:
-            print(f"[❌] Not enough TA shifts (need {shifts_required}, have {total_shifts_available}).")
+        if not UserExperiments.check_ta_shifts_required(inventory, shifts_required):
+            print("❌ Not enough TA shifts.")
             return
+
 
         if inventory.credits < ocs_cost:
             print(f"[❌] Not enough credits for OCS compute (need {ocs_cost}, have {inventory.credits}).")
@@ -307,19 +307,8 @@ class UserExperiments:
             return
 
         # Deduct shifts
-        remaining = shifts_required
-        for field in [
-            "ta_saltos_shifts",
-            "ta_nitro_shifts",
-            "ta_helene_shifts",
-            "ta_carnival_shifts",
-        ]:
-            available = getattr(inventory, field)
-            used = min(available, remaining)
-            setattr(inventory, field, available - used)
-            remaining -= used
-            if remaining == 0:
-                break
+        UserExperiments.deduct_ta_shifts(inventory, shifts_required)
+
 
         # Deduct credits
         inventory.credits -= ocs_cost
