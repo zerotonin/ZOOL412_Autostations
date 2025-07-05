@@ -3,6 +3,7 @@
 from sqlalchemy.orm import Session
 from db.models.inventory import Inventory
 from db.models.user import User
+from db.models.order import Order
 from db.models.item_catalog import ItemCatalog
 from db.models.order import ArticleEnum
 
@@ -131,3 +132,94 @@ class AdminActions:
         if new_items:
             session.add_all(new_items)
             session.commit()
+
+    @staticmethod
+    def advance_one_week(session: Session) -> None:
+        """
+        Advance simulation one week.
+        - Decrements wait times.
+        - Applies orders and events.
+        - Resets all TA shifts to 30.
+        - Updates max_shifts based on results.
+        """
+        print("[⏳] Advancing simulation...")
+
+        inventory = session.query(Inventory).first()
+        if not inventory:
+            raise RuntimeError("Inventory not initialized.")
+
+        orders = session.query(Order).filter(Order.wait_weeks >= 0).all()
+
+        # Reset TA shifts to 30
+        for field in [
+            "ta_saltos_shifts",
+            "ta_nitro_shifts",
+            "ta_helene_shifts",
+            "ta_carnival_shifts",
+        ]:
+            setattr(inventory, field, 30)
+
+        for order in orders:
+            order.wait_weeks -= 1
+
+            if order.wait_weeks == 0:
+                if order.is_effect:
+                    AdminActions._apply_event_effect(order, inventory)
+                else:
+                    AdminActions._apply_order_effect(order, inventory)
+
+        # After events are applied, sync shifts_max to current shifts
+        for ta in ["ta_saltos", "ta_nitro", "ta_helene", "ta_carnival"]:
+            shifts = getattr(inventory, f"{ta}_shifts")
+            setattr(inventory, f"{ta}_shifts_max", shifts)
+
+        session.commit()
+        print("[✔] Week advanced.\n")
+
+    @staticmethod
+    def _apply_order_effect(order: Order, inventory: Inventory) -> None:
+        """Handles completed resource acquisitions."""
+        field = order.article
+        if hasattr(inventory, field):
+            current = getattr(inventory, field)
+            setattr(inventory, field, current + 1)
+            print(f"[Inventory] +1 {field} → {current + 1}")
+        else:
+            print(f"[Warning] Inventory field '{field}' not found.")
+
+    @staticmethod
+    def _apply_event_effect(order: Order, inventory: Inventory) -> None:
+        """
+        Dispatches to the correct handler based on event type.
+        """
+        if order.event_type == "juiz":
+            AdminActions._handle_juiz_event(order, inventory)
+        elif order.event_type == "hunt":
+            AdminActions._handle_hunting_event(order, inventory)
+        else:
+            print(f"[Warning] Unknown event type: {order.event_type}")
+            
+    @staticmethod
+    def _handle_juiz_event(order: Order, inventory: Inventory) -> None:
+        """
+        Reduces TA shift capacity due to post-Juiz fatigue.
+        """
+        field = order.inventory_field
+        if not field or not hasattr(inventory, field):
+            print(f"[Warning] Invalid TA field for Juiz effect: {field}")
+            return
+
+        max_field = field.replace("_shifts", "_shifts_max")
+        current_max = getattr(inventory, max_field, 30)
+        new_shifts = round(current_max * 0.3)
+
+        setattr(inventory, field, new_shifts)
+        print(f"[Juiz Effect] {field} reduced to {new_shifts} (from max {current_max})")
+
+    @staticmethod
+    def _handle_hunting_event(order: Order, inventory: Inventory) -> None:
+        """
+        Placeholder for future animal collection logic.
+        """
+        print(f"[Hunt Effect] (Placeholder) Event completed: {order.article}")
+        pass

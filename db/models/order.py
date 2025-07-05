@@ -36,5 +36,6 @@ class Order(Base):
 
     # Optional target inventory field name (e.g. 'ta_saltos_shifts')
     inventory_field = Column(String, nullable=True)
+    event_type = Column(String, nullable=True) 
 
     user = relationship("User", backref="orders")

@@ -178,7 +178,8 @@ class UserActions:
             date=date.today(),
             time=datetime.now().time(),
             article="JUICE",
-            inventory_field=ta_field,  # new field added here
+            inventory_field=ta_field,  # effect field
+            event_type = "juiz", # event type for tracking
             value=0.0,              # not a purchase
             wait_weeks=1,
             is_effect=True,
