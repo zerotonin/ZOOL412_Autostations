@@ -127,12 +127,18 @@ class UserActions:
             raise ValueError("No Juice available in inventory.")
 
         # STEP 2: Check TA eligibility (must be juicable)
-        current_shifts = getattr(inventory, ta_field)
-        if not (0 < current_shifts <=30):
+        # Get TA field info
+        shifts_field = ta_field
+        max_field = ta_field.replace("_shifts", "_shifts_max")
+        risk_field = ta_field.replace("_shifts", "_risk")
+
+        current_shifts = getattr(inventory, shifts_field)
+        current_max = getattr(inventory, max_field)
+        current_risk = getattr(inventory, risk_field)
+        if not (0 < current_max <=30):
             raise ValueError(f"TA '{ta_field}' cannot be juiced at {current_shifts:.2f} shifts.")
 
         # STEP 3: Determine death risk field and value
-        risk_field = ta_field.replace("_shifts", "_risk")
         current_risk = getattr(inventory, risk_field, 0.0)
 
         # STEP 4: Roll the 100-sided dice
@@ -141,13 +147,24 @@ class UserActions:
 
         if current_risk == 0.0 or dice > current_risk:
             # Survives: Boost output and raise risk
-            boosted_shifts = round(current_shifts * 1.8)
-            setattr(inventory, ta_field, boosted_shifts)
+            # Calculate new max shifts and offset
+            new_max = round(current_max * 1.8)
+            offset = new_max - current_max
+            
+            # Apply to max and available
+            setattr(inventory, max_field, new_max)
+            setattr(inventory, shifts_field, current_shifts + offset)
             setattr(inventory, risk_field, min(current_risk + 10.0, 100.0))
-            print(f"[Boost] TA '{ta_field}' now has {boosted_shifts} shifts. Risk increased.")
+
+            print(
+                f"[Boost] {ta_field} max increased to {new_max}, "
+                f"shifts += {offset} → {current_shifts + offset}, "
+                f"risk is now {current_risk + 10:.0f}%"
+            )
         else:
             # Fatality
-            setattr(inventory, ta_field, 0)
+            setattr(inventory, max_field, 0)
+            setattr(inventory, shifts_field, 0)
             print(f"[Fatality] TA '{ta_field}' has died. Shifts set to 0.")
 
         # STEP 5: Deduct juice
