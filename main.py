@@ -16,7 +16,12 @@ def seed_initial_inventory():
     with Session(engine) as session:
         AdminActions.initialize_inventory(session)
 
+def seed_test_users():
+    with Session(engine) as session:
+        AdminActions.create_test_users(session)
+
 
 if __name__ == "__main__":
     initialize_database()
     seed_initial_inventory()
+    seed_test_users()
