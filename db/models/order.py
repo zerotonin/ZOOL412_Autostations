@@ -21,6 +21,7 @@ class ArticleEnum(str, Enum):
     ANIMALS_51U6_M = "animals_51u6_m"
     ANIMALS_C248_S = "animals_c248_s"
     ANIMALS_C248_B = "animals_c248_b"
+    KPI_OCS_JOB = "kpi_ocs_job"
 
 class Order(Base):
     """Stores order records linked to a user and affecting inventory."""
