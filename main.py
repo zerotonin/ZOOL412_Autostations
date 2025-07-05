@@ -45,9 +45,30 @@ def test_order():
         print(f"Order placed: {order.article} for {order.value:.2f} chuan")
 
 
+def test_juicing():
+    """
+    Simulates applying Juiz to a TA under valid conditions.
+    This tests:
+    - Juice availability
+    - Risk tracking
+    - Order logging
+    """
+    with Session(engine) as session:
+        try:
+            order = UserActions.administer_juiz(
+                session=session,
+                ta_field="ta_saltos_shifts",  # Can be switched to other TAs
+                user_id=1,  # Assumes test user with ID=1 exists
+            )
+            print(f"[SUCCESS] Juicing applied. Logged as: {order.article}")
+        except Exception as e:
+            print(f"[ERROR] {e}")
+
+
 if __name__ == "__main__":
     re_initialize_database()
     seed_initial_inventory() 
     seed_test_users()
     seed_prices()
     test_order()
+    test_juicing()

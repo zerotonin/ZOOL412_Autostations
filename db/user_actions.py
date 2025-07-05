@@ -95,6 +95,7 @@ class UserActions:
         session.commit()
         return order
 
+    
     @staticmethod
     def administer_juiz(session: Session, ta_field: str, user_id: int) -> Order:
         """
@@ -127,7 +128,7 @@ class UserActions:
 
         # STEP 2: Check TA eligibility (must be juicable)
         current_shifts = getattr(inventory, ta_field)
-        if not (0 < current_shifts <= 54):
+        if not (0 < current_shifts <=30):
             raise ValueError(f"TA '{ta_field}' cannot be juiced at {current_shifts:.2f} shifts.")
 
         # STEP 3: Determine death risk field and value
@@ -152,75 +153,19 @@ class UserActions:
         # STEP 5: Deduct juice
         inventory.juice -= 1
 
-@staticmethod
-def administer_juiz(session: Session, ta_field: str, user_id: int) -> Order:
-    """
-    Administer Busy Bee Juiz™ to a TA.
+        # STEP 6: Log juice action (not purchase)
+        article_name = f"juiced_{ta_field}"
 
-    Ensures inventory juice is available, applies boost or death logic,
-    updates persistent death risk, and logs the order.
-
-    Parameters
-    ----------
-    session : Session
-        SQLAlchemy session.
-    ta_field : str
-        Field name in Inventory for the TA's shifts (e.g. 'ta_saltos_shifts').
-    user_id : int
-        ID of user applying the juice.
-
-    Returns
-    -------
-    Order
-        Log entry for the juicing action.
-    """
-    inventory = session.query(Inventory).first()
-    if inventory is None:
-        raise RuntimeError("Inventory not initialized.")
-
-    # STEP 1: Check juice availability
-    if inventory.juice < 1:
-        raise ValueError("No Juice available in inventory.")
-
-    # STEP 2: Check TA eligibility (must be juicable)
-    current_shifts = getattr(inventory, ta_field)
-    if not (0 < current_shifts <=30):
-        raise ValueError(f"TA '{ta_field}' cannot be juiced at {current_shifts:.2f} shifts.")
-
-    # STEP 3: Determine death risk field and value
-    risk_field = ta_field.replace("_shifts", "_risk")
-    current_risk = getattr(inventory, risk_field, 0.0)
-
-    # STEP 4: Roll the 100-sided dice
-    dice = random.randint(1, 100)
-    print(f"[Juice Attempt] {ta_field} | Risk: {current_risk:.0f}% | Roll: {dice}")
-
-    if current_risk == 0.0 or dice > current_risk:
-        # Survives: Boost output and raise risk
-        boosted_shifts = round(current_shifts * 1.8)
-        setattr(inventory, ta_field, boosted_shifts)
-        setattr(inventory, risk_field, min(current_risk + 10.0, 100.0))
-        print(f"[Boost] TA '{ta_field}' now has {boosted_shifts} shifts. Risk increased.")
-    else:
-        # Fatality
-        setattr(inventory, ta_field, 0)
-        print(f"[Fatality] TA '{ta_field}' has died. Shifts set to 0.")
-
-    # STEP 5: Deduct juice
-    inventory.juice -= 1
-
-    # STEP 6: Log juice action (not purchase)
-    article_name = f"juiced_{ta_field}"
-
-    order = Order(
-        user_id=user_id,
-        date=date.today(),
-        time=datetime.now().time(),
-        article=article_name,  # logs effect for admin review
-        value=0.0,              # not a purchase
-        wait_weeks=1,
-        is_effect=True,
-    )
-
-    return order
+        order = Order(
+            user_id=user_id,
+            date=date.today(),
+            time=datetime.now().time(),
+            article=article_name,  # logs effect for admin review
+            value=0.0,              # not a purchase
+            wait_weeks=1,
+            is_effect=True,
+        )
+        session.add(order)
+        session.commit()
+        return order
 
