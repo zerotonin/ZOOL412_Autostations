@@ -17,6 +17,10 @@ class ArticleEnum(str, Enum):
     MAMR_REEL_CARTRDIGE = "mamr_reel_cartrdige"
     DUPONT_CARTRIDGE = "dupont_cartridge"
     JUICE = "juice"
+    ANIMALS_51U6 = "animals_51u6"
+    ANIMALS_51U6_M = "animals_51u6_m"
+    ANIMALS_C248_S = "animals_c248_s"
+    ANIMALS_C248_B = "animals_c248_b"
 
 class Order(Base):
     """Stores order records linked to a user and affecting inventory."""
