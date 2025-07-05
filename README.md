@@ -10,3 +10,15 @@ ZOOL412_Autostations/
 │       ├── __init__.py
 │       └── inventory.py  # Your Inventory model
 └── main.py               # Entry point for testing
+
+
+
+Database for Experiments
+
+experiments
+    └── geneweaver_experiments
+    └── intraspectra_experiments
+    └── neurocartographer_experiments
+    └── polykiln_experiments
+    └── panopticam_experiments
+    └── virgo_experiments
