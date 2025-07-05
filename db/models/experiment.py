@@ -19,6 +19,7 @@ class Experiment(Base):
     user_id = Column(Integer, ForeignKey("users.key"), nullable=False)
     autostation_name = Column(String, nullable=False)    # e.g. 'GeneWeaver', 'Virgo Reactor'
     experiment_type = Column(String, nullable=False)     # e.g. 'DGE Analysis', 'Synthesis'
+    subject_species = Column(String, nullable=False)  # e.g., '51u6_m'
 
     date = Column(Date, nullable=False)
     time = Column(Time, nullable=False)
