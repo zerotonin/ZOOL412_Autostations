@@ -137,10 +137,12 @@ class AdminActions:
     def advance_one_week(session: Session) -> None:
         """
         Advance simulation one week.
+        - Resets TA shifts to 30.
+        - Resets animal availability to current max.
         - Decrements wait times.
         - Applies orders and events.
-        - Resets all TA shifts to 30.
-        - Updates max_shifts based on results.
+        - Updates TA max shifts (if juiced).
+        - Updates animal max to match new availability.
         """
         print("[⏳] Advancing simulation...")
 
@@ -148,9 +150,7 @@ class AdminActions:
         if not inventory:
             raise RuntimeError("Inventory not initialized.")
 
-        orders = session.query(Order).filter(Order.wait_weeks >= 0).all()
-
-        # Reset TA shifts to 30
+        # STEP 1: Reset TA shifts to 30 (regardless of previous max)
         for field in [
             "ta_saltos_shifts",
             "ta_nitro_shifts",
@@ -158,6 +158,19 @@ class AdminActions:
             "ta_carnival_shifts",
         ]:
             setattr(inventory, field, 30)
+
+        # STEP 2: Reset animal availability to current max
+        for species in [
+            "animals_51u6",
+            "animals_51u6_m",
+            "animals_c248_s",
+            "animals_c248_b",
+        ]:
+            max_val = getattr(inventory, f"{species}_max")
+            setattr(inventory, f"{species}_available", max_val)
+
+        # STEP 3: Fetch and apply scheduled events
+        orders = session.query(Order).filter(Order.wait_weeks >= 0).all()
 
         for order in orders:
             order.wait_weeks -= 1
@@ -168,10 +181,20 @@ class AdminActions:
                 else:
                     AdminActions._apply_order_effect(order, inventory)
 
-        # After events are applied, sync shifts_max to current shifts
+        # STEP 4: After events, update TA max shifts to match actual values
         for ta in ["ta_saltos", "ta_nitro", "ta_helene", "ta_carnival"]:
             shifts = getattr(inventory, f"{ta}_shifts")
             setattr(inventory, f"{ta}_shifts_max", shifts)
+
+        # STEP 5: After events, update animal max counts to reflect post-event availability
+        for species in [
+            "animals_51u6",
+            "animals_51u6_m",
+            "animals_c248_s",
+            "animals_c248_b",
+        ]:
+            available = getattr(inventory, f"{species}_available")
+            setattr(inventory, f"{species}_max", available)
 
         session.commit()
         print("[✔] Week advanced.\n")
@@ -219,7 +242,9 @@ class AdminActions:
     @staticmethod
     def _handle_hunting_event(order: Order, inventory: Inventory) -> None:
         """
-        Placeholder for future animal collection logic.
+        Adds collected animals to inventory at delivery time.
         """
-        print(f"[Hunt Effect] (Placeholder) Event completed: {order.article}")
-        pass
+        field = order.inventory_field
+        current = getattr(inventory, field, 0)
+        setattr(inventory, field, current + int(order.value))
+        print(f"[HUNT DELIVERY] +{int(order.value)} → {field}")
