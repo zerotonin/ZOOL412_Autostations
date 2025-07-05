@@ -2,6 +2,8 @@
 
 from db.base import Base, engine
 from db.models.inventory import Inventory
+from db.models.user import User
+from db.models.order import Order
 
 
 def initialize_database():
