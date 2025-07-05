@@ -16,6 +16,7 @@ class ArticleEnum(str, Enum):
     SMART_FILAMENT_L_CARTRIDGE = "smart_filament_l_cartridge"
     MAMR_REEL_CARTRDIGE = "mamr_reel_cartrdige"
     DUPONT_CARTRIDGE = "dupont_cartridge"
+    JUICE = "juice"
 
 class Order(Base):
     """Stores order records linked to a user and affecting inventory."""
@@ -32,5 +33,8 @@ class Order(Base):
     wait_weeks = Column(Integer, default=0)
 
     is_effect = Column(Boolean, default=False) 
+
+    # Optional target inventory field name (e.g. 'ta_saltos_shifts')
+    inventory_field = Column(String, nullable=True)
 
     user = relationship("User", backref="orders")

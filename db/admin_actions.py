@@ -117,7 +117,8 @@ class AdminActions:
             ItemCatalog(item_key=ArticleEnum.SMART_FILAMENT_L_CARTRIDGE, display_name="Smart Filament L", chuan_cost=70000, wait_weeks=1),
             ItemCatalog(item_key=ArticleEnum.MAMR_REEL_CARTRDIGE, display_name="MAMR Reel Cartridge", chuan_cost=70000, wait_weeks=1),
             ItemCatalog(item_key=ArticleEnum.DUPONT_CARTRIDGE, display_name="DuPont Cartridge", chuan_cost=70000, wait_weeks=1),
-            ItemCatalog(item_key="juice", display_name="Juice Pack", chuan_cost=10000, wait_weeks=0),
+            ItemCatalog(item_key=ArticleEnum.JUICE, display_name="Juice Pack", chuan_cost=10000, wait_weeks=0),
+
         ]
 
         # Add only if item_key is not already present
