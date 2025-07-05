@@ -2,6 +2,7 @@
 
 from sqlalchemy.orm import Session
 from db.models.inventory import Inventory
+from db.models.user import User
 
 
 class AdminActions:
@@ -59,3 +60,31 @@ class AdminActions:
         session.add(inventory)
         session.commit()
         return inventory
+
+    @staticmethod
+    def create_test_users(session: Session) -> list[User]:
+        """
+        Add four test users to the database for testing purposes.
+
+        All users are assigned to the team 'Psi-Nestor' and include 
+        a mix of English and Māori names for diversity.
+
+        Parameters
+        ----------
+        session : Session
+            Active SQLAlchemy session.
+
+        Returns
+        -------
+        list[User]
+            List of created user records.
+        """
+        users = [
+            User(first_name="Aroha", last_name="Ngata", team="Psi-Nestor"),
+            User(first_name="James", last_name="Wellington", team="Psi-Nestor"),
+            User(first_name="Mereana", last_name="Te Rangi", team="Psi-Nestor"),
+            User(first_name="Thomas", last_name="Whakataka", team="Psi-Nestor"),
+        ]
+        session.add_all(users)
+        session.commit()
+        return users
