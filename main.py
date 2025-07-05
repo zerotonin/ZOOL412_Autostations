@@ -4,6 +4,7 @@ from db.base import Base, engine
 from db.models.inventory import Inventory
 from db.models.user import User
 from db.models.order import Order
+from db.models.experiment import Experiment
 from db.models.item_catalog import ItemCatalog
 from db.admin_actions import AdminActions
 from db.models.order import ArticleEnum
