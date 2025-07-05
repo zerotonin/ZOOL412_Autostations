@@ -18,11 +18,16 @@ class Inventory(Base):
     #Money in Chuan
     credits = Column(Float)
 
-    # Technical assistance shifts
-    ta_saltos_shifts = Column(Integer)
-    ta_nitro_shifts = Column(Integer)
-    ta_helene_shifts = Column(Integer)
-    ta_carnival_shifts = Column(Integer)
+    # Technical assistance shifts available
+    ta_saltos_shifts = Column(Integer,default=30)
+    ta_nitro_shifts = Column(Integer,default=30)
+    ta_helene_shifts = Column(Integer,default=30)
+    ta_carnival_shifts = Column(Integer,default=30)
+    # Technical assistance shifts available
+    ta_saltos_shifts_max = Column(Integer,default=30)
+    ta_nitro_shifts_max = Column(Integer,default=30)
+    ta_helene_shifts_max = Column(Integer,default=30)
+    ta_carnival_shifts_max = Column(Integer,default=30)
     # Technical assistance death risk
     ta_saltos_risk = Column(Float, default=0.0)
     ta_nitro_risk = Column(Float, default=0.0)
