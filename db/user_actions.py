@@ -160,7 +160,8 @@ class UserActions:
             user_id=user_id,
             date=date.today(),
             time=datetime.now().time(),
-            article=article_name,  # logs effect for admin review
+            article="JUICE",
+            inventory_field=ta_field,  # new field added here
             value=0.0,              # not a purchase
             wait_weeks=1,
             is_effect=True,
