@@ -12,6 +12,10 @@ from db.models.experiment import Experiment
 from db.models.geneweaver_experiment import GeneWeaverExperiment
 from db.models.geneweaver_group import GeneWeaverGroup
 from db.models.intraspectra_experiment import IntraspectraExperiment
+from db.models.item_catalog import ItemCatalog
+
+
+
 
 
 class UserExperiments:
@@ -60,52 +64,93 @@ class UserExperiments:
         inventory.credits -= amount
         return True
 
+    @staticmethod
+    def calculate_ocs_cost(session: Session, unit_count: int, units_per_job: int = 1000) -> tuple[int, int]:
+        """
+        Calculates the number of OCS jobs and total cost using the item catalog.
+
+        Parameters
+        ----------
+        session : Session
+            SQLAlchemy session.
+        unit_count : int
+            Number of units (samples, frames, volumes) to process.
+        units_per_job : int
+            Number of units per job (default: 1000 for visual data, 50 for DGE).
+
+        Returns
+        -------
+        tuple[int, int]
+            (job_count, total_cost)
+        """
+        jobs = math.ceil(unit_count / units_per_job)
+
+        item = session.query(ItemCatalog).filter_by(
+            item_key=ArticleEnum.KPI_OCS_JOB.value
+        ).first()
+
+        if item is None:
+            raise RuntimeError("KPI_OCS_JOB not found in ItemCatalog.")
+
+        return jobs, jobs * int(item.chuan_cost)
 
 
-
+    # Experiment functions
 
     @staticmethod
     def run_geneweaver_dge_analysis(user_id: int, form_data: dict, session: Session) -> None:
         """
-        Run a DGE Analysis on the GeneWeaver autostation. This version checks resource feasibility,
-        prints a cost breakdown, and requests confirmation before committing.
+        Run a DGE Analysis on the GeneWeaver autostation.
+        Compute cost is handled via KPI Orbital Compute Suite (OCS).
         """
         inventory = session.query(Inventory).first()
         if not inventory:
             raise RuntimeError("Inventory not initialized.")
 
-        # Collect input
         groups = form_data["groups"]
         total_samples = sum(g["subject_count"] for g in groups)
         shifts_required = math.ceil(total_samples / 5)
         max_sequences = form_data["max_sequences"]
         fold_threshold = form_data["fold_change_threshold"]
 
-        cartridge_field = "xatty_cartridge"
+        # 🧪 Cartridge check
         if inventory.xatty_cartridge < 1:
             print("[❌] Not enough XATTY cartridges available.")
             return
 
+        # 🧠 TA shifts check
         if not UserExperiments.check_ta_shifts_required(inventory, shifts_required):
             print("❌ Not enough TA shifts.")
             return
 
-
-        compute_cost = (
+        # 🧮 OCS jobs = ceil((samples × max_sequences) / 20)
+        ocs_units = (
             total_samples * max_sequences
             if max_sequences > 0
-            else total_samples * 1000  # conservative guess
+            else total_samples * 1000
+        )
+        ocs_jobs, ocs_cost = UserExperiments.calculate_ocs_cost(
+            session=session,
+            unit_count=ocs_units,
+            units_per_job=100
         )
 
+        if inventory.credits < ocs_cost:
+            print(f"[❌] Not enough credits for OCS jobs: need {ocs_cost}, have {inventory.credits}.")
+            return
+
+        # ✅ Dry Run Output
         print("\n[💡] GeneWeaver DGE Analysis — Dry Run")
         print("=====================================")
         print(f"🧪 User ID:             {user_id}")
         print(f"🔬 Samples:             {total_samples}")
-        print(f"📊 Max Sequences:       {max_sequences}")
         print(f"📉 Fold Change Cutoff:  {fold_threshold}")
+        print(f"📊 Max Sequences:       {max_sequences}")
         print(f"🧠 Shifts Required:     {shifts_required}")
         print(f"🧪 Cartridge Required:  1 XATTY")
-        print(f"💾 Compute Units:       {compute_cost} chuan")
+        print(f"🖥️ OCS Units:           {ocs_units}")
+        print(f"🖥️ OCS Jobs:            {ocs_jobs}")
+        print(f"💴 OCS Compute Cost:    {ocs_cost} chuan")
         print("=====================================")
         confirm = input("Proceed with booking this experiment? [Y/n] ").strip().lower()
 
@@ -113,17 +158,10 @@ class UserExperiments:
             print("🚫 Experiment not booked.")
             return
 
-        # Deduct cartridge
+        # Deduct resources
         inventory.xatty_cartridge -= 1
-
-        # Deduct shifts (greedy)
         UserExperiments.deduct_ta_shifts(inventory, shifts_required)
-
-        # Deduct compute cost from credits
-        if inventory.credits < compute_cost:
-            print("[❌] Not enough credits available. Booking aborted.")
-            return
-        inventory.credits -= compute_cost
+        inventory.credits -= ocs_cost
 
         # Log experiment
         exp = Experiment(
@@ -160,7 +198,8 @@ class UserExperiments:
             session.add(group_entry)
 
         session.commit()
-        print(f"[✔] Experiment successfully booked.\n")
+        print(f"[✔] GeneWeaver DGE experiment booked. Total cost: {ocs_cost} chuan.")
+
 
 
 
