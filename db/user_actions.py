@@ -7,12 +7,21 @@ from db.models.order import Order, ArticleEnum
 from db.models.item_catalog import ItemCatalog
 from db.models.inventory import Inventory
 from db.models.acquisition import AcquisitionType
+from db.models.hunting import AnimalSpecies
 
 
 ACQUISITION_RULES = {
     AcquisitionType.QUICK: {"cooldown": 1, "price_factor": 2.00},
     AcquisitionType.STANDARD: {"cooldown": 2, "price_factor": 1.00},
     AcquisitionType.SMART: {"cooldown": 3, "price_factor": 0.80},
+}
+
+# Inside user_actions.py or hunting.py
+HUNTING_RULES = {
+    AnimalSpecies.U51: {"cooldown": 0, "method": "gaussian"},
+    AnimalSpecies.U51_M: {"cooldown": 1, "method": "gaussian"},
+    AnimalSpecies.C248_S: {"cooldown": 1, "method": "colony"},
+    AnimalSpecies.C248_B: {"cooldown": 0, "method": "uniform"},
 }
 
 
