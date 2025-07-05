@@ -36,8 +36,5 @@ class GeneWeaverExperiment(Base):
     # Cartridge tracking
     cartridge_used = Column(String, nullable=True)
 
-    # Experiment result file paths or text summary
-    output_file_path = Column(String, nullable=True)
-    result_notes = Column(Text, nullable=True)
 
     experiment = relationship("Experiment", backref="geneweaver_details")
