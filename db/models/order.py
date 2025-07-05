@@ -1,6 +1,6 @@
 # db/models/order.py
 
-from sqlalchemy import Column, Integer, Float, Date, Time, ForeignKey, String
+from sqlalchemy import Column, Integer, Float, Date, Time, ForeignKey, String, Boolean
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.orm import relationship
 from db.base import Base
@@ -30,5 +30,7 @@ class Order(Base):
     article = Column(SqlEnum(ArticleEnum), nullable=False)  # Will refer to a known inventory field name
     value = Column(Float, nullable=False)
     wait_weeks = Column(Integer, default=0)
+
+    is_effect = Column(Boolean, default=False) 
 
     user = relationship("User", backref="orders")
