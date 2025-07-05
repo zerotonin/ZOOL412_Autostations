@@ -252,7 +252,9 @@ class UserActions:
 
         if cooldown == 0:
             current_count = getattr(inventory, f"{species.value}_available", 0)
+            current_max = getattr(inventory, f"{species.value}_max", 0)
             setattr(inventory, f"{species.value}_available", current_count + amount)
+            setattr(inventory, f"{species.value}_max", current_max + amount)
             print(f"[HUNT] Collected {amount} {species.name}, added directly to inventory.")
         else:
             # Create scheduled order to deliver later
