@@ -37,10 +37,10 @@ class AdminActions:
         """
         inventory = Inventory(
             credits=2_000_000.0,
-            ta_saltos_shifts=120,
-            ta_nitro_shifts=120,
-            ta_helene_shifts=120,
-            ta_carnival_shifts=120,
+            ta_saltos_shifts   = 30,
+            ta_nitro_shifts    = 30,
+            ta_helene_shifts   = 30,
+            ta_carnival_shifts = 30,
             juice=3,
             animals_51u6_max=40,
             animals_51u6_available=40,
