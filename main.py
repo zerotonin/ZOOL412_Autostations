@@ -6,6 +6,8 @@ from db.models.user import User
 from db.models.order import Order
 from db.models.experiment import Experiment
 from db.models.item_catalog import ItemCatalog
+from db.models.geneweaver_experiment import GeneWeaverExperiment
+from db.models.geneweaver_group import GeneWeaverGroup
 from db.admin_actions import AdminActions
 from db.models.order import ArticleEnum
 from db.models.acquisition import AcquisitionType
