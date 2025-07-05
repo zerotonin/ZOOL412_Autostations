@@ -141,6 +141,24 @@ def test_hunting(species):
     with Session(engine) as session:
         UserActions.collect_animals(user_id=1, species=species, session=session)
 
+def test_intraspectra_visual():
+    with Session(engine) as session:
+        form_data = {
+            "subject_count": 4,
+            "imaging_technique": "Microscopy",
+            "capture_type": "Time_Series",
+            "frame_capture_rate": 60.0,
+            "spectral_filter": "Infrared_Thermal",
+            "microscopy_technique": "Fluorescence",
+            "magnification_level": "40x",
+            "region_of_interest": "Midbrain dorsal view, dissected and stained"
+        }
+
+        UserExperiments.run_intraspectra_visual(
+            user_id=1,
+            form_data=form_data,
+            session=session
+        )
 
 if __name__ == "__main__":
     re_initialize_database()
@@ -157,5 +175,4 @@ if __name__ == "__main__":
     test_hunting(AnimalSpecies.U51)
     test_order()
     test_advance_one_week()
-    test_geneweaver_dge()
-    test_geneweaver_viral()
+    test_intraspectra_visual()
