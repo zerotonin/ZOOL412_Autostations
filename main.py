@@ -9,6 +9,7 @@ from db.admin_actions import AdminActions
 from db.models.order import ArticleEnum
 from db.models.acquisition import AcquisitionType
 from db.user_actions import UserActions
+from db.models.hunting import AnimalSpecies
 
 
 def initialize_database():
@@ -69,13 +70,20 @@ def test_advance_one_week():
     with Session(engine) as session:
         AdminActions.advance_one_week(session)
 
+def test_hunting():
+    with Session(engine) as session:
+        UserActions.collect_animals(user_id=1, species=AnimalSpecies.U51_M, session=session)
+
+
 if __name__ == "__main__":
     re_initialize_database()
     seed_initial_inventory() 
     seed_test_users()
     seed_prices()
-    test_order()
-    test_juicing()
-    test_advance_one_week()
-    test_juicing()
-    test_advance_one_week()
+
+    # test_order()
+    # test_juicing()
+    # test_advance_one_week()
+    # test_juicing()
+    # test_advance_one_week()
+    test_hunting()

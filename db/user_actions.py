@@ -197,3 +197,77 @@ class UserActions:
         session.commit()
         return order
 
+    @staticmethod
+    def collect_animals(user_id: int, species: AnimalSpecies, session: Session) -> None:
+        """
+        Attempts to collect animals if enough TA shifts are available.
+        Deducts 12 shifts, calculates success, and either adds animals to inventory
+        or schedules a future delivery.
+        """
+        inventory = session.query(Inventory).first()
+        if not inventory:
+            raise RuntimeError("Inventory not initialized.")
+
+        # Total available shifts
+        ta_fields = [
+            "ta_saltos_shifts",
+            "ta_nitro_shifts",
+            "ta_helene_shifts",
+            "ta_carnival_shifts",
+        ]
+        total_shifts = sum(getattr(inventory, f) for f in ta_fields)
+
+        if total_shifts < 12:
+            print(f"[ERROR] Not enough TA shifts available (have {total_shifts}, need 12)")
+            return
+
+        # Deduct 12 shifts (greedy)
+        shifts_to_deduct = 12
+        for f in ta_fields:
+            current = getattr(inventory, f)
+            used = min(current, shifts_to_deduct)
+            setattr(inventory, f, current - used)
+            shifts_to_deduct -= used
+            if shifts_to_deduct == 0:
+                break
+
+        # Determine collection success
+        rule = HUNTING_RULES[species]
+        method = rule["method"]
+        cooldown = rule["cooldown"]
+
+        if method == "gaussian":
+            amount = round(random.gauss(mu=12, sigma=5))
+            amount = max(3, min(amount, 30))
+        elif method == "colony":
+            amount = 12 if random.random() < 0.33 else 0
+        elif method == "uniform":
+            amount = random.randint(0, 3)
+        else:
+            raise ValueError(f"Unknown collection method for {species}")
+
+        if amount == 0:
+            print(f"[HUNT] Attempted {species.value}, but collected nothing.")
+            return
+
+        if cooldown == 0:
+            current_count = getattr(inventory, f"{species.value}_available", 0)
+            setattr(inventory, f"{species.value}_available", current_count + amount)
+            print(f"[HUNT] Collected {amount} {species.name}, added directly to inventory.")
+        else:
+            # Create scheduled order to deliver later
+            order = Order(
+                user_id=user_id,
+                date=date.today(),
+                time=datetime.now().time(),
+                article=species.value,
+                value=amount,
+                wait_weeks=cooldown,
+                is_effect=True,
+                event_type="hunt",
+                inventory_field=f"{species.value}_available",
+            )
+            session.add(order)
+            print(f"[HUNT] Scheduled {amount} {species.name} in {cooldown} week(s).")
+
+        session.commit()
