@@ -7,8 +7,8 @@ from db.base import Base
 
 class GeneWeaverGroup(Base):
     """
-    Linked table for experimental groups in GeneWeaver experiments.
-    Handles both DGE and Viral modes.
+    A group of subjects for a GeneWeaver experiment, including name, size,
+    and optionally instructions or modification type depending on the mode.
     """
 
     __tablename__ = "geneweaver_groups"
@@ -17,8 +17,8 @@ class GeneWeaverGroup(Base):
     geneweaver_experiment_id = Column(Integer, ForeignKey("geneweaver_experiments.id"), nullable=False)
 
     group_name = Column(String, nullable=False)
-    subject_ids = Column(Text, nullable=False)  # Raw string of subject IDs
-    sampling_instructions = Column(Text, nullable=True)  # DGE mode
-    modification_type = Column(String, nullable=True)    # Viral mode only: Addition, Knockout, etc.
+    subject_count = Column(Integer, nullable=False)
+    sampling_instructions = Column(Text, nullable=True)  # for DGE
+    modification_type = Column(String, nullable=True)    # for Viral mode only
 
     geneweaver_experiment = relationship("GeneWeaverExperiment", backref="groups")
