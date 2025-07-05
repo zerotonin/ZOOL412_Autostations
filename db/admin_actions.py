@@ -92,17 +92,18 @@ class AdminActions:
         return users
 
 
+
     @staticmethod
     def initialize_item_catalog(session: Session) -> None:
         """
         Populate the ItemCatalog with known cartridges and consumables.
-
-        Prices are set in 'chuan' units.
-
-        Items:
-        - Cartridges ~70,000
-        - Juice ~10,000
+        Will not duplicate existing entries.
         """
+        existing_keys = {
+            item.item_key
+            for item in session.query(ItemCatalog.item_key).all()
+        }
+
         catalog_items = [
             ItemCatalog(item_key=ArticleEnum.XATTY_CARTRIDGE, display_name="XATTY Cartridge", chuan_cost=70000, wait_weeks=1),
             ItemCatalog(item_key=ArticleEnum.ZEROPOINT_CARTRIDGE, display_name="ZeroPoint Cartridge", chuan_cost=70000, wait_weeks=1),
@@ -115,5 +116,9 @@ class AdminActions:
             ItemCatalog(item_key="juice", display_name="Juice Pack", chuan_cost=10000, wait_weeks=0),
         ]
 
-        session.add_all(catalog_items)
-        session.commit()
+        # Add only if item_key is not already present
+        new_items = [item for item in catalog_items if item.item_key not in existing_keys]
+
+        if new_items:
+            session.add_all(new_items)
+            session.commit()
