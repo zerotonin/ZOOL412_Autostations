@@ -272,6 +272,47 @@ class UserExperiments:
         session.commit()
         print(f"[✔] GeneWeaver DGE experiment booked. Total cost: {ocs_cost} chuan.")
 
+    @staticmethod
+    def log_experiment(
+        session: Session,
+        user_id: int,
+        species: str,
+        autostation: str,
+        experiment_type: str,
+        wait_weeks: int = 1,
+    ) -> Experiment:
+        """
+        Creates and logs a new Experiment in the database.
+
+        Parameters
+        ----------
+        session : Session
+            SQLAlchemy session object.
+        user_id : int
+            ID of the user submitting the experiment.
+        species : str
+            Species the experiment is run on (e.g., 'animals_51u6').
+        autostation : str
+            The name of the autostation used.
+        experiment_type : str
+            The mode of the experiment (e.g., 'DGE Analysis').
+        wait_weeks : int, optional
+            Number of weeks until experiment result is ready.
+
+        Returns
+        -------
+        Experiment
+            The created and flushed experiment object.
+        """
+        exp = UserExperiments.log_experiment(
+            session=session,
+            user_id=user_id,
+            autostation_name=autostation,
+            experiment_type=experiment_type,
+            subject_species=species,
+            wait_weeks=wait_weeks,
+        )
+        return exp
 
 
 
@@ -328,18 +369,14 @@ class UserExperiments:
 
 
         # Log experiment
-        exp = Experiment(
+        exp = UserExperiments.log_experiment(
+            session=session,
             user_id=user_id,
             autostation_name="GeneWeaver",
             experiment_type="Viral Vector Modification",
             subject_species=species,  
-            date=date.today(),
-            time=datetime.now().time(),
             wait_weeks=3,
-            is_complete=False,
         )
-        session.add(exp)
-        session.flush()
 
         gexp = GeneWeaverExperiment(
             experiment_id=exp.id,
@@ -441,18 +478,14 @@ class UserExperiments:
         inventory.credits -= ocs_cost
 
         # Log experiment
-        exp = Experiment(
+        exp = UserExperiments.log_experiment(
+            session=session,
             user_id=user_id,
             autostation_name="Intraspectra",
             experiment_type="Visual Acquisition",
             subject_species=species,  
-            date=date.today(),
-            time=datetime.now().time(),
             wait_weeks=1,
-            is_complete=False,
         )
-        session.add(exp)
-        session.flush()
 
         visual = IntraspectraExperiment(
             experiment_id=exp.id,
