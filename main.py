@@ -65,6 +65,10 @@ def test_juicing():
             print(f"[ERROR] {e}")
 
 
+def test_advance_one_week():
+    with Session(engine) as session:
+        AdminActions.advance_one_week(session)
+
 if __name__ == "__main__":
     re_initialize_database()
     seed_initial_inventory() 
@@ -72,3 +76,6 @@ if __name__ == "__main__":
     seed_prices()
     test_order()
     test_juicing()
+    test_advance_one_week()
+    test_juicing()
+    test_advance_one_week()
