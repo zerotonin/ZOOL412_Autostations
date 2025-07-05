@@ -1,0 +1,14 @@
+name: ZOOL412_AutoStations
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.11
+  - sqlalchemy
+  - numpy
+  - pip
+  - pip:
+      - black  # for autoformatting
+      - pylint  # optional: linting
+      - sphinx  # for documentation generation
