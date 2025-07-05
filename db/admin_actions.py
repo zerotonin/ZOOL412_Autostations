@@ -58,7 +58,7 @@ class AdminActions:
             animals_c248_s_available   = -1,
             animals_c248_l_max         = -1,
             animals_c248_l_available   = -1,
-            xatty_cartridgeX           = 1,
+            xatty_cartridge            = 1,
             zeropoint_cartridge        = 1,
             nc_pk1_cartridge           = 1,
             smart_filament_s_cartridge = 1,
