@@ -3,6 +3,8 @@
 from sqlalchemy.orm import Session
 from db.models.inventory import Inventory
 from db.models.user import User
+from db.models.item_catalog import ItemCatalog
+from db.models.order import ArticleEnum
 
 
 class AdminActions:
@@ -88,3 +90,30 @@ class AdminActions:
         session.add_all(users)
         session.commit()
         return users
+
+
+    @staticmethod
+    def initialize_item_catalog(session: Session) -> None:
+        """
+        Populate the ItemCatalog with known cartridges and consumables.
+
+        Prices are set in 'chuan' units.
+
+        Items:
+        - Cartridges ~70,000
+        - Juice ~10,000
+        """
+        catalog_items = [
+            ItemCatalog(item_key=ArticleEnum.XATTY_CARTRIDGE, display_name="XATTY Cartridge", chuan_cost=70000, wait_weeks=1),
+            ItemCatalog(item_key=ArticleEnum.ZEROPOINT_CARTRIDGE, display_name="ZeroPoint Cartridge", chuan_cost=70000, wait_weeks=1),
+            ItemCatalog(item_key=ArticleEnum.NC_PK1_CARTRIDGE, display_name="NC-PK1 Cartridge", chuan_cost=70000, wait_weeks=1),
+            ItemCatalog(item_key=ArticleEnum.SMART_FILAMENT_S_CARTRIDGE, display_name="Smart Filament S", chuan_cost=70000, wait_weeks=1),
+            ItemCatalog(item_key=ArticleEnum.SMART_FILAMENT_M_CARTRIDGE, display_name="Smart Filament M", chuan_cost=70000, wait_weeks=1),
+            ItemCatalog(item_key=ArticleEnum.SMART_FILAMENT_L_CARTRIDGE, display_name="Smart Filament L", chuan_cost=70000, wait_weeks=1),
+            ItemCatalog(item_key=ArticleEnum.MAMR_REEL_CARTRDIGE, display_name="MAMR Reel Cartridge", chuan_cost=70000, wait_weeks=1),
+            ItemCatalog(item_key=ArticleEnum.DUPONT_CARTRIDGE, display_name="DuPont Cartridge", chuan_cost=70000, wait_weeks=1),
+            ItemCatalog(item_key="juice", display_name="Juice Pack", chuan_cost=10000, wait_weeks=0),
+        ]
+
+        session.add_all(catalog_items)
+        session.commit()

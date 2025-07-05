@@ -4,6 +4,7 @@ from db.base import Base, engine
 from db.models.inventory import Inventory
 from db.models.user import User
 from db.models.order import Order
+from db.models.item_catalog import ItemCatalog
 from db.admin_actions import AdminActions
 
 
@@ -20,8 +21,13 @@ def seed_test_users():
     with Session(engine) as session:
         AdminActions.create_test_users(session)
 
+def seed_prices():
+    with Session(engine) as session:
+        AdminActions.initialize_item_catalog(session)
+
 
 if __name__ == "__main__":
     initialize_database()
-    seed_initial_inventory()
+    seed_initial_inventory() 
     seed_test_users()
+    seed_prices()
