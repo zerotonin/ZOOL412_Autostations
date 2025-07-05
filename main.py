@@ -25,6 +25,7 @@ from db.admin_actions import AdminActions
 def test_geneweaver_dge():
     with Session(engine) as session:
         form_data = {
+            "subject_species": "animals_51u6", 
             "fold_change_threshold": 2,
             "max_sequences": 5000,
             "cell_type_level": "subtype",
@@ -54,6 +55,7 @@ def test_geneweaver_dge():
 def test_geneweaver_viral():
     with Session(engine) as session:
         form_data = {
+            "subject_species": "animals_51u6", 
             "gene_of_interest": "Knock out gene X for metabolic inhibition.",
             "promoter_sequence": "Only express under high calcium concentration.",
             "transduction_level": "subtype",
@@ -144,6 +146,7 @@ def test_hunting(species):
 def test_intraspectra_visual():
     with Session(engine) as session:
         form_data = {
+            "subject_species": "animals_51u6_m", 
             "subject_count": 4,
             "imaging_technique": "Microscopy",
             "capture_type": "Time_Series",
@@ -174,5 +177,7 @@ if __name__ == "__main__":
     test_hunting(AnimalSpecies.U51_M)
     test_hunting(AnimalSpecies.U51)
     test_order()
+    test_geneweaver_dge()
     test_advance_one_week()
     test_intraspectra_visual()
+    test_geneweaver_viral()

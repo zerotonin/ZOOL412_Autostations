@@ -182,10 +182,6 @@ class UserExperiments:
         fold_threshold = form_data["fold_change_threshold"]
         animal_shifts =shifts_required*total_samples
 
-        # 🐁 Animal availability check
-        if not UserExperiments.check_animal_required(inventory, species, animal_shifts):
-            return
-
         # 🧪 Cartridge check
         if inventory.xatty_cartridge < 1:
             print("[❌] Not enough XATTY cartridges available.")
@@ -235,7 +231,7 @@ class UserExperiments:
         # Deduct resources
         inventory.xatty_cartridge -= 1
         UserExperiments.deduct_ta_shifts(inventory, shifts_required)
-        UserExperiments.deduct_animals(inventory, "animals_51u6", animal_shifts)
+        UserExperiments.deduct_animals(inventory, species, animal_shifts)
         inventory.credits -= ocs_cost
 
         # Log experiment
@@ -288,10 +284,16 @@ class UserExperiments:
         inventory = UserExperiments.get_inventory(session)
 
 
+        species = form_data["subject_species"]
         groups = form_data["groups"]
         total_animals = sum(g["subject_count"] for g in groups)
         shifts_required = total_animals
         cartridge_field = "xatty_cartridge"
+        animal_shifts =shifts_required*total_animals
+
+        # 🐁 Animal availability check
+        if not UserExperiments.check_animal_required(inventory, species, animal_shifts):
+            return
 
         # Resource checks
         if inventory.xatty_cartridge < 1:
@@ -308,6 +310,7 @@ class UserExperiments:
         print(f"🧪 User ID:             {user_id}")
         print(f"🐁 Subjects:            {total_animals}")
         print(f"🧠 Shifts Required:     {shifts_required}")
+        print(f"🐁 Animal FTE Required: {(animal_shifts / 30):.2f}")
         print(f"🧪 Cartridge Required:  1 XATTY")
         print("💾 Compute Units:       0")
         print("===================================================")
@@ -321,6 +324,7 @@ class UserExperiments:
         inventory.xatty_cartridge -= 1
 
         UserExperiments.deduct_ta_shifts(inventory, shifts_required)
+        UserExperiments.deduct_animals(inventory, species, animal_shifts)
 
 
         # Log experiment
@@ -328,6 +332,7 @@ class UserExperiments:
             user_id=user_id,
             autostation_name="GeneWeaver",
             experiment_type="Viral Vector Modification",
+            subject_species=species,  
             date=date.today(),
             time=datetime.now().time(),
             wait_weeks=3,
@@ -370,6 +375,7 @@ class UserExperiments:
         inventory = UserExperiments.get_inventory(session)
 
         # Inputs
+        species = form_data["subject_species"]
         subject_count = form_data["subject_count"]
         capture_type = form_data["capture_type"]
         frame_rate = form_data.get("frame_capture_rate", None)
@@ -384,6 +390,8 @@ class UserExperiments:
             raise ValueError("Invalid capture type.")
 
         shifts_required = math.ceil(subject_count / samples_per_shift)
+        animal_shifts =shifts_required*subject_count
+
 
         # Estimate frames per subject
         total_frames = (
@@ -394,6 +402,11 @@ class UserExperiments:
         # Compute OCS jobs
         ocs_jobs = math.ceil(total_frames / 1000)
         ocs_cost = ocs_jobs * 1000
+
+
+        # 🐁 Animal availability check
+        if not UserExperiments.check_animal_required(inventory, species, animal_shifts):
+            return
 
         if not UserExperiments.check_ta_shifts_required(inventory, shifts_required):
             print("❌ Not enough TA shifts.")
@@ -409,6 +422,7 @@ class UserExperiments:
         print(f"🧪 User ID:             {user_id}")
         print(f"📸 Subjects:            {subject_count}")
         print(f"🧠 Shifts Required:     {shifts_required}")
+        print(f"🐁 Animal FTE Required: {(animal_shifts / 30):.2f}")
         print(f"🖥️ OCS Jobs:            {ocs_jobs}")
         print(f"💴 OCS Compute Cost:    {ocs_cost} chuan")
         print("===================================================")
@@ -420,6 +434,7 @@ class UserExperiments:
 
         # Deduct shifts
         UserExperiments.deduct_ta_shifts(inventory, shifts_required)
+        UserExperiments.deduct_animals(inventory, species, animal_shifts)
 
 
         # Deduct credits
@@ -430,6 +445,7 @@ class UserExperiments:
             user_id=user_id,
             autostation_name="Intraspectra",
             experiment_type="Visual Acquisition",
+            subject_species=species,  
             date=date.today(),
             time=datetime.now().time(),
             wait_weeks=1,
