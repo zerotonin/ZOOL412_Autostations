@@ -219,7 +219,8 @@ class UserExperiments:
         print(f"🔬 Samples:             {total_samples}")
         print(f"📉 Fold Change Cutoff:  {fold_threshold}")
         print(f"📊 Max Sequences:       {max_sequences}")
-        print(f"🧠 Shifts Required:     {shifts_required}")
+        print(f"🧠 TA Shifts Required:  {shifts_required}")
+        print(f"🐁 Animal FTE Required: {(animal_shifts / 30):.2f}")
         print(f"🧪 Cartridge Required:  1 XATTY")
         print(f"🖥️ OCS Units:           {ocs_units}")
         print(f"🖥️ OCS Jobs:            {ocs_jobs}")
@@ -242,6 +243,7 @@ class UserExperiments:
             user_id=user_id,
             autostation_name="GeneWeaver",
             experiment_type="DGE Analysis",
+            subject_species=species,  
             date=date.today(),
             time=datetime.now().time(),
             wait_weeks=2,
