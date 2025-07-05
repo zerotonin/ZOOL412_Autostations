@@ -186,7 +186,7 @@ class AdminActions:
             shifts = getattr(inventory, f"{ta}_shifts")
             setattr(inventory, f"{ta}_shifts_max", shifts)
 
-        # STEP 5: After events, update animal max counts to reflect post-event availability
+        # STEP 5: After events, update animal max counts to reflect new FTE availability
         for species in [
             "animals_51u6",
             "animals_51u6_m",
@@ -246,5 +246,5 @@ class AdminActions:
         """
         field = order.inventory_field
         current = getattr(inventory, field, 0)
-        setattr(inventory, field, current + int(order.value))
-        print(f"[HUNT DELIVERY] +{int(order.value)} → {field}")
+        setattr(inventory, field, current + float(order.value))
+        print(f"[HUNT DELIVERY] +{float(order.value)} → {field}")
