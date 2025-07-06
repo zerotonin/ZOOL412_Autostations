@@ -14,6 +14,7 @@ from db.models.geneweaver_group import GeneWeaverGroup
 from db.models.intraspectra_experiment import IntraspectraExperiment
 from db.models.neurocartographer_experiment import NeuroCartographerExperiment
 from db.models.panopticam_experiment import PanopticamExperiment, PanopticamGroup, PanopticamEvent, PanopticamPhase,PanopticamContingency
+from db.models.polykiln_experiment import PolykilnExperiment
 from db.models.item_catalog import ItemCatalog
 
 
@@ -816,3 +817,112 @@ class UserExperiments:
 
         session.commit()
         print("[✔] Panopticam monitoring session booked successfully.")
+
+
+    @staticmethod
+    def run_polykiln_fabrication(user_id: int, form_data: dict, session: Session) -> None:
+        """
+        Runs a Polykiln Object Fabrication job.
+        Determines workload, cartridge type, and OCS compute cost from complexity scores.
+        """
+        inventory = UserExperiments.get_inventory(session)
+
+        # Extract parameters
+        species = form_data["subject_species"]
+        name = form_data["object_name"]
+        description = form_data["functional_description"]
+        size_tier = form_data["assessed_size_tier"]  # "S", "M", "L"
+        mech_tier = int(form_data["assessed_mechanical_tier"])
+        elec_tier = int(form_data["assessed_electronic_tier"])
+
+        size_points = {"S": 1, "M": 2, "L": 3}[size_tier]
+        score = (size_points * 2) + mech_tier + elec_tier
+
+        # Determine cartridge
+        if score <= 4:
+            cartridge_field = "smart_filament_s_cartridge"
+            cartridge_enum = ArticleEnum.SMART_FILAMENT_S_CARTRIDGE
+            shift_cost = 1
+            cartridge_name = "S"
+        elif score <= 8:
+            cartridge_field = "smart_filament_m_cartridge"
+            cartridge_enum = ArticleEnum.SMART_FILAMENT_M_CARTRIDGE
+            shift_cost = 2
+            cartridge_name = "M"
+        else:
+            cartridge_field = "smart_filament_l_cartridge"
+            cartridge_enum = ArticleEnum.SMART_FILAMENT_L_CARTRIDGE
+            shift_cost = 3
+            cartridge_name = "L"
+
+        # OCS Cost: Base 5 + mech tier + elec tier (0/4/8/16)
+        tier_costs = [0, 4, 8, 16]
+        ocs_cost = 5 + tier_costs[mech_tier] + tier_costs[elec_tier]
+
+        animal_shifts = shift_cost * 2  # conservative estimate
+
+        # Validation
+        if getattr(inventory, cartridge_field) < 1:
+            print(f"[❌] Not enough {cartridge_name} Smart Filament cartridges.")
+            return
+
+        if not UserExperiments.check_animal_required(inventory, species, animal_shifts):
+            return
+
+        if not UserExperiments.check_ta_shifts_required(inventory, shift_cost):
+            print("❌ Not enough TA shifts.")
+            return
+
+        if inventory.credits < ocs_cost:
+            print(f"[❌] Not enough credits (need {ocs_cost}, have {inventory.credits}).")
+            return
+
+        # Summary
+        print("\n[💡] Polykiln Fabrication — Dry Run")
+        print("===================================================")
+        print(f"🔧 Object:              {name}")
+        print(f"📝 Description:         {description[:50]}...")
+        print(f"📦 Size Tier:           {size_tier} ({shift_cost} shifts)")
+        print(f"⚙️ Mechanical Tier:     {mech_tier}")
+        print(f"🧠 Electronic Tier:     {elec_tier}")
+        print(f"📈 Score:               {score}")
+        print(f"📦 Cartridge Required:  {cartridge_name}")
+        print(f"💾 OCS Compute Cost:    {ocs_cost} chuan")
+        print("===================================================")
+        confirm = input("Proceed with booking this fabrication? [Y/n] ").strip().lower()
+        if confirm != "" and confirm != "y":
+            print("🚫 Fabrication not booked.")
+            return
+
+        # Deduct resources
+        setattr(inventory, cartridge_field, getattr(inventory, cartridge_field) - 1)
+        UserExperiments.deduct_ta_shifts(inventory, shift_cost)
+        UserExperiments.deduct_animals(inventory, species, animal_shifts)
+        inventory.credits -= ocs_cost
+
+        # Log experiment
+        exp = UserExperiments.log_experiment(
+            session=session,
+            user_id=user_id,
+            autostation_name="Polykiln",
+            experiment_type="Object Fabrication",
+            subject_species=species,
+            wait_weeks=2,
+        )
+
+        job = PolykilnExperiment(
+            experiment_id=exp.id,
+            object_name=name,
+            functional_description=description,
+            size_tier=size_tier,
+            mechanical_tier=mech_tier,
+            electronic_tier=elec_tier,
+            score=score,
+            filament_type_used=cartridge_name,
+            cartridge_used=cartridge_enum.value,
+            shift_cost=shift_cost,
+            ocs_compute_cost=ocs_cost
+        )
+        session.add(job)
+        session.commit()
+        print(f"[✔] Fabrication job for '{name}' booked successfully.")

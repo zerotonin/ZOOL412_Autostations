@@ -273,6 +273,26 @@ def test_panopticam_monitoring():
             session=session
         )
 
+def test_polykiln_fabrication():
+    with Session(engine) as session:
+        form_data = {
+            "subject_species": "animals_51u6",
+            "object_name": "ReactiveProbeHousing_V2",
+            "functional_description": (
+                "Design a protective housing for an internal probe system "
+                "that maintains thermal stability and allows flexible movement. "
+                "The device must include passive airflow and sensor mounts."
+            ),
+            "assessed_size_tier": "M",
+            "assessed_mechanical_tier": 2,
+            "assessed_electronic_tier": 2
+        }
+
+        UserExperiments.run_polykiln_fabrication(
+            user_id=1,
+            form_data=form_data,
+            session=session
+        )
 
 
 if __name__ == "__main__":
@@ -295,4 +315,5 @@ if __name__ == "__main__":
     # test_intraspectra_rt()
     # test_geneweaver_viral()
     # test_neurocartographer_trace()
-    test_panopticam_monitoring()
+    # test_panopticam_monitoring()
+    test_polykiln_fabrication()
