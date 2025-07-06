@@ -15,6 +15,7 @@ from db.models.intraspectra_experiment import IntraspectraExperiment
 from db.models.neurocartographer_experiment import NeuroCartographerExperiment
 from db.models.panopticam_experiment import PanopticamExperiment, PanopticamGroup, PanopticamEvent, PanopticamPhase,PanopticamContingency
 from db.models.polykiln_experiment import PolykilnExperiment
+from db.models.virgo_experiment import VirgoExperiment
 from db.models.item_catalog import ItemCatalog
 
 
@@ -926,3 +927,146 @@ class UserExperiments:
         session.add(job)
         session.commit()
         print(f"[✔] Fabrication job for '{name}' booked successfully.")
+
+
+
+    @staticmethod
+    def run_virgo_analysis(user_id: int, form_data: dict, session: Session) -> None:
+        """
+        Runs a compound analysis using the Virgo Flow Reactor.
+        Handles new or known sample, optional Θ-OSP functional consultation.
+        """
+        inventory = UserExperiments.get_inventory(session)
+
+        species = form_data["subject_species"]
+        is_new_sample = bool(form_data.get("sample_source_description"))
+        theta_requested = form_data.get("request_theta_analysis", False)
+
+        shifts_required = 1 if is_new_sample else 0
+        ocs_cost = 1 if is_new_sample else 0
+        if theta_requested:
+            ocs_cost += 3
+
+        animal_shifts = shifts_required * 2
+
+        if not UserExperiments.check_animal_required(inventory, species, animal_shifts):
+            return
+        if not UserExperiments.check_ta_shifts_required(inventory, shifts_required):
+            print("❌ Not enough TA shifts.")
+            return
+        if inventory.credits < ocs_cost:
+            print(f"❌ Not enough credits (need {ocs_cost}, have {inventory.credits}).")
+            return
+
+        # Summary
+        print("\n[💡] Virgo Analysis — Dry Run")
+        print("======================================")
+        print(f"📄 Reference: {form_data['analysis_reference_name']}")
+        print(f"🧪 New Sample: {'Yes' if is_new_sample else 'No'}")
+        print(f"🔍 Θ-OSP Consultation: {'Yes' if theta_requested else 'No'}")
+        print(f"🧠 Shifts Required: {shifts_required}")
+        print(f"🐁 Animal FTE Required: {(animal_shifts / 30):.2f}")
+        print(f"💾 OCS Compute Cost: {ocs_cost} chuan")
+        print("======================================")
+        confirm = input("Proceed with analysis? [Y/n] ").strip().lower()
+        if confirm != "" and confirm != "y":
+            print("🚫 Analysis cancelled.")
+            return
+
+        UserExperiments.deduct_ta_shifts(inventory, shifts_required)
+        UserExperiments.deduct_animals(inventory, species, animal_shifts)
+        inventory.credits -= ocs_cost
+
+        exp = UserExperiments.log_experiment(
+            session=session,
+            user_id=user_id,
+            autostation_name="Virgo",
+            experiment_type="Compound Analysis",
+            subject_species=species,
+            wait_weeks=1
+        )
+
+        analysis = VirgoExperiment(
+            experiment_id=exp.id,
+            mode="analysis",
+            sample_source_description=form_data.get("sample_source_description"),
+            analysis_reference_name=form_data["analysis_reference_name"],
+            request_theta_analysis=theta_requested,
+            shifts_used=shifts_required,
+            compute_cost=ocs_cost,
+            cartridge_used=None
+        )
+        session.add(analysis)
+        session.commit()
+        print("[✔] Virgo compound analysis booked.")
+
+    @staticmethod
+    def run_virgo_synthesis(user_id: int, form_data: dict, session: Session) -> None:
+        """
+        Runs a synthesis job using the Virgo Flow Reactor.
+        Synthesizes known or novel compound (Θ-OSP request implied for novel).
+        """
+        inventory = UserExperiments.get_inventory(session)
+
+        species = form_data["subject_species"]
+        known = bool(form_data.get("target_compound_identifier"))
+        is_novel = not known
+        shifts_required = 3
+        ocs_cost = 15 if is_novel else 0
+        cartridge_field = "dupont_cartridge"
+        animal_shifts = shifts_required * 2
+
+        if getattr(inventory, cartridge_field) < 1:
+            print("[❌] Not enough DuPont OmniChem Blue Capsules.")
+            return
+        if not UserExperiments.check_animal_required(inventory, species, animal_shifts):
+            return
+        if not UserExperiments.check_ta_shifts_required(inventory, shifts_required):
+            print("❌ Not enough TA shifts.")
+            return
+        if inventory.credits < ocs_cost:
+            print(f"❌ Not enough credits (need {ocs_cost}, have {inventory.credits}).")
+            return
+
+        # Summary
+        print("\n[💡] Virgo Synthesis — Dry Run")
+        print("======================================")
+        print(f"🔬 Type: {'Novel (with Θ-OSP)' if is_novel else 'Known'}")
+        print(f"🧠 Shifts Required: {shifts_required}")
+        print(f"🐁 Animal FTE Required: {(animal_shifts / 30):.2f}")
+        print(f"💊 Cartridge: DuPont OmniChem Blue Capsule")
+        print(f"💾 OCS Compute Cost: {ocs_cost}")
+        print("======================================")
+        confirm = input("Proceed with synthesis? [Y/n] ").strip().lower()
+        if confirm != "" and confirm != "y":
+            print("🚫 Synthesis cancelled.")
+            return
+
+        inventory.dupont_cartridge -= 1
+        UserExperiments.deduct_ta_shifts(inventory, shifts_required)
+        UserExperiments.deduct_animals(inventory, species, animal_shifts)
+        inventory.credits -= ocs_cost
+
+        exp = UserExperiments.log_experiment(
+            session=session,
+            user_id=user_id,
+            autostation_name="Virgo",
+            experiment_type="Synthesize Compound",
+            subject_species=species,
+            wait_weeks=2
+        )
+
+        synth = VirgoExperiment(
+            experiment_id=exp.id,
+            mode="synthesis",
+            target_compound_identifier=form_data.get("target_compound_identifier"),
+            desired_functional_effect=form_data.get("desired_functional_effect"),
+            request_theta_analysis=is_novel,
+            shifts_used=shifts_required,
+            compute_cost=ocs_cost,
+            cartridge_used=ArticleEnum.DUPONT_CARTRIDGE.value
+        )
+        session.add(synth)
+        session.commit()
+        print("[✔] Virgo synthesis job booked.")
+

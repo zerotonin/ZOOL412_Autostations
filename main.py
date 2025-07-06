@@ -295,6 +295,33 @@ def test_polykiln_fabrication():
             session=session
         )
 
+def test_virgo_analysis():
+    with Session(engine) as session:
+        form_data = {
+            "subject_species": "animals_51u6",
+            "sample_source_description": "Isolate from leaf litter biofilm in quadrant D7.",
+            "analysis_reference_name": "Qd7_LeafLitter_Sample1",
+            "request_theta_analysis": True
+        }
+        UserExperiments.run_virgo_analysis(
+            user_id=1,
+            form_data=form_data,
+            session=session
+        )
+
+def test_virgo_synthesis():
+    with Session(engine) as session:
+        form_data = {
+            "subject_species": "animals_51u6",
+            "desired_functional_effect": "Inhibit acetylcholine receptors in dorsal ganglia."
+        }
+        UserExperiments.run_virgo_synthesis(
+            user_id=1,
+            form_data=form_data,
+            session=session
+        )
+
+
 
 if __name__ == "__main__":
     re_initialize_database()
@@ -316,5 +343,7 @@ if __name__ == "__main__":
     # test_intraspectra_rt()
     # test_geneweaver_viral()
     # test_neurocartographer_trace()
-    # test_panopticam_monitoring()
+    test_panopticam_monitoring()
     test_polykiln_fabrication()
+    test_virgo_analysis()
+    test_virgo_synthesis()
