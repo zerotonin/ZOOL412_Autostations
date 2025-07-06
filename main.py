@@ -18,6 +18,7 @@ from db.models.geneweaver_group import GeneWeaverGroup
 from db.models.intraspectra_experiment import IntraspectraExperiment
 from db.models.neurocartographer_experiment import NeuroCartographerExperiment
 from db.models.panopticam_experiment import PanopticamExperiment, PanopticamGroup, PanopticamEvent, PanopticamPhase,PanopticamContingency
+from db.models.polykiln_experiment import PolykilnExperiment
 # Import all user actions and admin actions
 from db.user_experiments import UserExperiments
 from db.user_actions import UserActions
