@@ -13,6 +13,7 @@ from db.models.geneweaver_experiment import GeneWeaverExperiment
 from db.models.geneweaver_group import GeneWeaverGroup
 from db.models.intraspectra_experiment import IntraspectraExperiment
 from db.models.neurocartographer_experiment import NeuroCartographerExperiment
+from db.models.panopticam_experiment import PanopticamExperiment, PanopticamGroup, PanopticamEvent, PanopticamPhase,PanopticamContingency
 from db.models.item_catalog import ItemCatalog
 
 
@@ -691,3 +692,127 @@ class UserExperiments:
         session.add(trace)
         session.commit()
         print(f"[✔] Directed Circuit Trace experiment booked successfully.")
+
+    @staticmethod
+    def run_panopticam_monitoring(user_id: int, form_data: dict, session: Session) -> None:
+        """
+        Runs a Panopticam Behavioral Monitoring session.
+        Handles group setup, event logging, phase structuring, contingency rules, and resource costs.
+        """
+        inventory = UserExperiments.get_inventory(session)
+
+        species = form_data["subject_species"]
+        total_subjects = sum(group["subject_count"] for group in form_data["experimental_groups"])
+        probe_type = form_data.get("probe_type_used", "None")
+        monitoring_hours = float(form_data["total_monitoring_hours"])
+
+        # Base shift cost
+        subject_shift_cost = 0.5 if probe_type != "None" else 0.1
+        shifts_required = 3 + (total_subjects * subject_shift_cost) + (monitoring_hours * 0.1)
+        animal_shifts = shifts_required * total_subjects
+
+        # OCS Cost: 3 base + 1 per event + 0.5 per subject per hour
+        event_count = len(form_data["event_dictionary"])
+        ocs_jobs = 3 + (event_count * 1) + (0.5 * total_subjects * monitoring_hours)
+        ocs_jobs, ocs_cost  = UserExperiments.calculate_ocs_cost(session,ocs_jobs, units_per_job=1)
+
+        # Cartridge check
+        if inventory.mamr_reel_cartrdige < 1:
+            print("[❌] Not enough MAMR Reel cartridges available.")
+            return
+
+        if not UserExperiments.check_animal_required(inventory, species, animal_shifts):
+            return
+
+        if not UserExperiments.check_ta_shifts_required(inventory, math.ceil(shifts_required)):
+            print("❌ Not enough TA shifts.")
+            return
+
+        if inventory.credits < ocs_cost:
+            print(f"[❌] Not enough credits for OCS compute (need {ocs_cost}, have {inventory.credits}).")
+            return
+
+        # ✅ Dry Run Summary
+        print("\n[💡] Panopticam Monitoring — Dry Run")
+        print("===================================================")
+        print(f"🧪 User ID:             {user_id}")
+        print(f"🐁 Subjects:            {total_subjects}")
+        print(f"🧠 Shifts Required:     {shifts_required:.2f}")
+        print(f"🐁 Animal FTE Required: {(animal_shifts / 30):.2f}")
+        print(f"💉 Cartridge Required:  1 MAMR Reel")
+        print(f"🧠 Events Defined:      {event_count}")
+        print(f"⏱️ Duration (hrs):       {monitoring_hours}")
+        print(f"💴 OCS Compute Cost:    {ocs_cost:.2f} chuan")
+        print("===================================================")
+        confirm = input("Proceed with booking this experiment? [Y/n] ").strip().lower()
+        if confirm != "" and confirm != "y":
+            print("🚫 Experiment not booked.")
+            return
+
+        # Deduct resources
+        inventory.mamr_reel_cartrdige -= 1
+        UserExperiments.deduct_ta_shifts(inventory, math.ceil(shifts_required))
+        UserExperiments.deduct_animals(inventory, species, animal_shifts)
+        inventory.credits -= ocs_cost
+
+        # Log Experiment
+        exp = UserExperiments.log_experiment(
+            session=session,
+            user_id=user_id,
+            autostation_name="Panopticam",
+            experiment_type="Define & Monitor Behavioral Events",
+            subject_species=species,
+            wait_weeks=2
+        )
+
+        pano = PanopticamExperiment(
+            experiment_id=exp.id,
+            experiment_run_id=form_data["experiment_run_id"],
+            probe_type_used=probe_type,
+            base_shift_cost=shifts_required,
+            total_subjects=total_subjects,
+            total_monitoring_hours=monitoring_hours,
+            cartridge_used=ArticleEnum.MAMR_REEL_CARTRDIGE.value
+        )
+        session.add(pano)
+        session.flush()
+
+        # Add Groups
+        for group in form_data["experimental_groups"]:
+            session.add(PanopticamGroup(
+                experiment_id=pano.id,
+                group_name=group["group_name"],
+                subject_count=group["subject_count"]
+            ))
+
+        # Add Events
+        for event in form_data["event_dictionary"]:
+            session.add(PanopticamEvent(
+                experiment_id=pano.id,
+                event_name=event["event_name"],
+                definition_type=event["definition_type"],
+                operational_definition=event["operational_definition"],
+                quantification_method=event["quantification_method"]
+            ))
+
+        # Add Phases + Contingencies
+        for phase in form_data["phase_sequence"]:
+            phase_row = PanopticamPhase(
+                experiment_id=pano.id,
+                phase_name=phase["phase_name"],
+                phase_duration=phase["phase_duration"],
+                monitor_events_active=",".join(phase.get("monitor_events_active", []))
+            )
+            session.add(phase_row)
+            session.flush()
+
+            for rule in phase.get("contingency_rules", []):
+                session.add(PanopticamContingency(
+                    phase_id=phase_row.id,
+                    trigger_event_name=rule["trigger_event_name"],
+                    applicable_groups=",".join(rule.get("applicable_groups", [])) if rule.get("applicable_groups") else None,
+                    action_command=rule["action_command"]
+                ))
+
+        session.commit()
+        print("[✔] Panopticam monitoring session booked successfully.")

@@ -17,7 +17,7 @@ from db.models.geneweaver_experiment import GeneWeaverExperiment
 from db.models.geneweaver_group import GeneWeaverGroup
 from db.models.intraspectra_experiment import IntraspectraExperiment
 from db.models.neurocartographer_experiment import NeuroCartographerExperiment
-from db.models.panopticam_experiment import PanopticamExperiment, PanopticamGroup, PanopticamEvent, PanopticamPhase
+from db.models.panopticam_experiment import PanopticamExperiment, PanopticamGroup, PanopticamEvent, PanopticamPhase,PanopticamContingency
 # Import all user actions and admin actions
 from db.user_experiments import UserExperiments
 from db.user_actions import UserActions
@@ -203,6 +203,77 @@ def test_neurocartographer_trace():
             session=session
         )
 
+def test_panopticam_monitoring():
+    with Session(engine) as session:
+        form_data = {
+            "subject_species": "animals_51u6",
+            "experiment_run_id": "Run_2025_07_A",
+            "probe_type_used": "pH",  # Try "None" to reduce shift cost
+            "total_monitoring_hours": 2.0,  # Combined across phases
+
+            "experimental_groups": [
+                {
+                    "group_name": "Control",
+                    "subject_count": 4,
+                },
+                {
+                    "group_name": "Stimulus_A",
+                    "subject_count": 4,
+                }
+            ],
+
+            "event_dictionary": [
+                {
+                    "event_name": "Foraging_Bout",
+                    "definition_type": "Natural Language Description",
+                    "operational_definition": "Subject enters zone B and maintains locomotion below 0.03 m/s for ≥5 seconds.",
+                    "quantification_method": "Duration"
+                },
+                {
+                    "event_name": "Tone_Response",
+                    "definition_type": "Response Characterization Request",
+                    "operational_definition": "Following Tone_A activation, analyze biopotential and video for 10s to extract salient deviation.",
+                    "quantification_method": "Latency"
+                }
+            ],
+
+            "phase_sequence": [
+                {
+                    "phase_name": "Baseline",
+                    "phase_duration": "1 hour",
+                    "monitor_events_active": ["Foraging_Bout"],
+
+                    "contingency_rules": [
+                        {
+                            "trigger_event_name": "Foraging_Bout",
+                            "applicable_groups": ["Stimulus_A"],
+                            "action_command": "Activate('Actuator_ToneA', {Volume: 0.8, Duration: '1.5s'})"
+                        }
+                    ]
+                },
+                {
+                    "phase_name": "Stimulus",
+                    "phase_duration": "1 hour",
+                    "monitor_events_active": ["Tone_Response"],
+
+                    "contingency_rules": [
+                        {
+                            "trigger_event_name": "Tone_Response",
+                            "action_command": "System_Command('End_Phase')"
+                        }
+                    ]
+                }
+            ]
+        }
+
+        UserExperiments.run_panopticam_monitoring(
+            user_id=1,
+            form_data=form_data,
+            session=session
+        )
+
+
+
 if __name__ == "__main__":
     re_initialize_database()
     seed_initial_inventory() 
@@ -222,4 +293,5 @@ if __name__ == "__main__":
     # test_intraspectra_visual()
     # test_intraspectra_rt()
     # test_geneweaver_viral()
-    test_neurocartographer_trace()
+    # test_neurocartographer_trace()
+    test_panopticam_monitoring()
