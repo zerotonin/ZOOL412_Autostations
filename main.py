@@ -16,6 +16,7 @@ from db.models.experiment import Experiment
 from db.models.geneweaver_experiment import GeneWeaverExperiment
 from db.models.geneweaver_group import GeneWeaverGroup
 from db.models.intraspectra_experiment import IntraspectraExperiment
+from db.models.neurocartographer_experiment import NeuroCartographerExperiment
 # Import all user actions and admin actions
 from db.user_experiments import UserExperiments
 from db.user_actions import UserActions
@@ -181,6 +182,26 @@ def test_intraspectra_rt():
             session=session
         )
 
+def test_neurocartographer_trace():
+    with Session(engine) as session:
+        form_data = {
+            "subject_species": "animals_51u6",
+            "subject_count": 3,
+            "seed_neuron_locator": "Primary motor neuron innervating Dorsal Wing Elevator.",
+            "tracer_transport_type": "Retrograde",
+            "max_neurons_to_map": 120,
+            "pathway_search_algorithm": (
+                "Follow strongest spike correlation at each synaptic depth up to 4 steps. "
+                "Prioritize high signal-to-noise and least adaptation neurons."
+            )
+        }
+
+        UserExperiments.run_neurocartographer_trace(
+            user_id=1,
+            form_data=form_data,
+            session=session
+        )
+
 if __name__ == "__main__":
     re_initialize_database()
     seed_initial_inventory() 
@@ -192,11 +213,12 @@ if __name__ == "__main__":
     # test_advance_one_week()
     # test_juicing()
     # test_advance_one_week()
-    test_hunting(AnimalSpecies.U51_M)
-    test_hunting(AnimalSpecies.U51)
-    test_order()
-    test_geneweaver_dge()
-    test_advance_one_week()
-    test_intraspectra_visual()
-    test_intraspectra_rt()
-    test_geneweaver_viral()
+    # test_hunting(AnimalSpecies.U51_M)
+    # test_hunting(AnimalSpecies.U51)
+    # test_order()
+    # test_geneweaver_dge()
+    # test_advance_one_week()
+    # test_intraspectra_visual()
+    # test_intraspectra_rt()
+    # test_geneweaver_viral()
+    test_neurocartographer_trace()

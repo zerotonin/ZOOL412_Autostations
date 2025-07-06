@@ -12,6 +12,7 @@ from db.models.experiment import Experiment
 from db.models.geneweaver_experiment import GeneWeaverExperiment
 from db.models.geneweaver_group import GeneWeaverGroup
 from db.models.intraspectra_experiment import IntraspectraExperiment
+from db.models.neurocartographer_experiment import NeuroCartographerExperiment
 from db.models.item_catalog import ItemCatalog
 
 
@@ -601,3 +602,92 @@ class UserExperiments:
         session.add(rt)
         session.commit()
         print(f"[✔] Intraspectra Resonance Tomography experiment booked successfully.")
+
+    @staticmethod
+    def run_neurocartographer_trace(user_id: int, form_data: dict, session: Session) -> None:
+        """
+        Runs a Directed Circuit Trace experiment on the NeuroCartographer autostation.
+        Deducts TA shifts, NC-PK1 cartridge, and OCS compute based on max neurons to trace.
+        """
+        inventory = UserExperiments.get_inventory(session)
+
+        # Inputs
+        species = form_data["subject_species"]
+        subject_count = form_data["subject_count"]
+        tracer_type = form_data["tracer_transport_type"]
+        max_neurons = form_data["max_neurons_to_map"]
+
+        # Shifts and FTE calculation
+        shifts_required = subject_count * 2
+        animal_shifts = shifts_required * subject_count  # full burden model
+
+        # Compute cost: ¥3 per neuron
+        ocs_units = max_neurons
+        ocs_jobs, ocs_cost = UserExperiments.calculate_ocs_cost(
+            session=session,
+            unit_count=ocs_units,
+            units_per_job=20  # 1 neuron per unit
+        )
+
+        # Resource checks
+        if inventory.nc_pk1_cartridge < 1:
+            print("[❌] Not enough NC-PK1 cartridges available.")
+            return
+
+        if not UserExperiments.check_animal_required(inventory, species, animal_shifts):
+            return
+
+        if not UserExperiments.check_ta_shifts_required(inventory, shifts_required):
+            print("❌ Not enough TA shifts.")
+            return
+
+        if inventory.credits < ocs_cost:
+            print(f"[❌] Not enough credits for OCS compute (need {ocs_cost}, have {inventory.credits}).")
+            return
+
+        # ✅ Dry Run
+        print("\n[💡] NeuroCartographer Circuit Trace — Dry Run")
+        print("===================================================")
+        print(f"🧪 User ID:              {user_id}")
+        print(f"🧠 Subjects:             {subject_count}")
+        print(f"🧪 Shifts Required:      {shifts_required}")
+        print(f"🐁 Animal FTE Required:  {(animal_shifts / 30):.2f}")
+        print(f"💉 Cartridge Required:   1 NC-PK1")
+        print(f"🧠 Neurons To Trace:     {max_neurons}")
+        print(f"🖥️ OCS Jobs:             {ocs_jobs}")
+        print(f"💴 OCS Compute Cost:     {ocs_cost} chuan")
+        print("===================================================")
+        confirm = input("Proceed with booking this experiment? [Y/n] ").strip().lower()
+
+        if confirm != "" and confirm != "y":
+            print("🚫 Experiment not booked.")
+            return
+
+        # Deduct resources
+        inventory.nc_pk1_cartridge -= 1
+        UserExperiments.deduct_ta_shifts(inventory, shifts_required)
+        UserExperiments.deduct_animals(inventory, species, animal_shifts)
+        inventory.credits -= ocs_cost
+
+        # Log experiment
+        exp = UserExperiments.log_experiment(
+            session=session,
+            user_id=user_id,
+            autostation_name="NeuroCartographer",
+            experiment_type="Directed Circuit Trace",
+            subject_species=species,
+            wait_weeks=2,
+        )
+
+        trace = NeuroCartographerExperiment(
+            experiment_id=exp.id,
+            subject_count=subject_count,
+            seed_neuron_locator=form_data["seed_neuron_locator"],
+            tracer_transport_type=tracer_type,
+            max_neurons_to_map=max_neurons,
+            pathway_search_algorithm=form_data["pathway_search_algorithm"],
+            cartridge_used=ArticleEnum.NC_PK1_CARTRIDGE.value
+        )
+        session.add(trace)
+        session.commit()
+        print(f"[✔] Directed Circuit Trace experiment booked successfully.")
