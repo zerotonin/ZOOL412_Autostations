@@ -223,11 +223,10 @@ class UserExperiments:
         species = form_data["subject_species"]
         groups = form_data["groups"]
         total_samples = sum(g["subject_count"] for g in groups)
-        shifts_required = math.ceil(total_samples / 5)
+        shifts_required = total_samples * 3  # 2 shifts per sample
         max_sequences = form_data["max_sequences"]
         fold_threshold = form_data["fold_change_threshold"]
-        animal_shifts =shifts_required*total_samples
-
+        animal_shifts =shifts_required
         # 🧪 Cartridge check
         if inventory.xatty_cartridge < 1:
             print("[❌] Not enough XATTY cartridges available.")
@@ -239,15 +238,11 @@ class UserExperiments:
             return
 
         # 🧮 OCS jobs = ceil((samples × max_sequences) / 20)
-        ocs_units = (
-            total_samples * max_sequences
-            if max_sequences > 0
-            else total_samples * 1000
-        )
+        ocs_units = max_sequences * total_samples
         ocs_jobs, ocs_cost = UserExperiments.calculate_ocs_cost(
             session=session,
             unit_count=ocs_units,
-            units_per_job=100
+            units_per_job=1000
         )
 
         if inventory.credits < ocs_cost:

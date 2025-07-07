@@ -96,7 +96,7 @@ def test_geneweaver_dge():
         form_data = {
             "subject_species": "animals_51u6", 
             "fold_change_threshold": 2,
-            "max_sequences": 5000,
+            "max_sequences": 5,
             "cell_type_level": "subtype",
             "cell_type_description": "Retinal ganglion cells",
             "groups": [
@@ -175,10 +175,10 @@ def test_intraspectra_rt():
             "subject_count": 20,
             "target_substance": "BioFluid_Oxygenation",
             "target_is_custom": False,
-            "volume_capture_type": "Dynamic_Volume_Series",  # Static_Volume or Dynamic_Volume_Series
+            "volume_capture_type": "Static_Volume",  # Static_Volume or Dynamic_Volume_Series
             "region_of_interest": "Thoracic Ganglion Cluster",
             "volume_capture_rate": 0.5,  # only needed for dynamic
-            "number_of_volumes": 100
+            "number_of_volumes": 20
         }
 
         UserExperiments.run_intraspectra_rt(
@@ -340,10 +340,10 @@ if __name__ == "__main__":
     # test_hunting(AnimalSpecies.U51_M)
     # test_hunting(AnimalSpecies.U51)
     # test_order()
-    # test_geneweaver_dge()
+    test_geneweaver_dge()
     # test_advance_one_week()
     # test_intraspectra_visual()
-    test_intraspectra_rt()
+    # test_intraspectra_rt()
     # test_geneweaver_viral()
     # test_neurocartographer_trace()
     # test_panopticam_monitoring()
