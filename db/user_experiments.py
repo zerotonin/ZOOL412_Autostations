@@ -421,26 +421,32 @@ class UserExperiments:
 
         # Compute shifts required
         if capture_type == "Single_Frame":
-            samples_per_shift = 10
+            samples_per_shift = 3
         elif capture_type == "Time_Series":
             samples_per_shift = 5
         else:
             raise ValueError("Invalid capture type.")
 
-        shifts_required = math.ceil(subject_count / samples_per_shift)
-        animal_shifts =shifts_required*subject_count
-
 
         # Estimate frames per subject
         total_frames = (
-            subject_count if capture_type == "Single_Frame"
-            else subject_count * 10000  # max for time series (adjust if dynamic input)
+            subject_count*3 if capture_type == "Single_Frame"
+            else subject_count * 10# max for time series (adjust if dynamic input)
+        )
+        shifts_required = math.ceil(total_frames / samples_per_shift)
+        animal_shifts =shifts_required
+        
+        # Compute OCS jobs
+        ocs_jobs, ocs_cost = UserExperiments.calculate_ocs_cost(
+            session=session,
+            unit_count=total_frames,
+            units_per_job=2  # 1000 frames per job
         )
 
-        # Compute OCS jobs
-        ocs_jobs = math.ceil(total_frames / 1000)
-        ocs_cost = ocs_jobs * 1000
-
+        # 🧪 Cartridge check
+        if inventory.zeropoint_cartridge < 1:
+            print("[❌] Not enough ZeroPoint cartridges available.")
+            return
 
         # 🐁 Animal availability check
         if not UserExperiments.check_animal_required(inventory, species, animal_shifts):
@@ -461,6 +467,7 @@ class UserExperiments:
         print(f"📸 Subjects:            {subject_count}")
         print(f"🧠 Shifts Required:     {shifts_required}")
         print(f"🐁 Animal FTE Required: {(animal_shifts / 30):.2f}")
+        print(f"🧪 Cartridge Required:  1 ZeroPoint")
         print(f"🖥️ OCS Jobs:            {ocs_jobs}")
         print(f"💴 OCS Compute Cost:    {ocs_cost} chuan")
         print("===================================================")
@@ -471,6 +478,7 @@ class UserExperiments:
             return
 
         # Deduct shifts
+        inventory.zeropoint_cartridge -= 1
         UserExperiments.deduct_ta_shifts(inventory, shifts_required)
         UserExperiments.deduct_animals(inventory, species, animal_shifts)
 
@@ -621,15 +629,15 @@ class UserExperiments:
         max_neurons = form_data["max_neurons_to_map"]
 
         # Shifts and FTE calculation
-        shifts_required = subject_count * 2
-        animal_shifts = shifts_required * subject_count  # full burden model
+        shifts_required = 10 + subject_count + max_neurons * 2 # 10 base + 1 per subject + 2 per neuron 
+        animal_shifts = shifts_required * subject_count - 10 # full burden model
 
         # Compute cost: ¥3 per neuron
         ocs_units = max_neurons
         ocs_jobs, ocs_cost = UserExperiments.calculate_ocs_cost(
             session=session,
             unit_count=ocs_units,
-            units_per_job=20  # 1 neuron per unit
+            units_per_job=1  # 1 neuron per unit
         )
 
         # Resource checks

@@ -28,64 +28,6 @@ from db.admin_actions import AdminActions
 
 
 
-def test_geneweaver_dge():
-    with Session(engine) as session:
-        form_data = {
-            "subject_species": "animals_51u6", 
-            "fold_change_threshold": 2,
-            "max_sequences": 5000,
-            "cell_type_level": "subtype",
-            "cell_type_description": "Retinal ganglion cells",
-            "groups": [
-                {
-                    "group_name": "Control",
-                    "subject_ids": "A01, A02, A03, A04, A05",
-                    "subject_count": 5,
-                    "sampling_instructions": "Collect hippocampus tissue 30 min post-light."
-                },
-                {
-                    "group_name": "Treatment",
-                    "subject_ids": "A06, A07, A08, A09, A10",
-                    "subject_count": 5,
-                    "sampling_instructions": "Same as control + expose to drug X."
-                }
-            ]
-        }
-
-        UserExperiments.run_geneweaver_dge_analysis(
-            user_id=1,
-            form_data=form_data,
-            session=session
-        )
-
-def test_geneweaver_viral():
-    with Session(engine) as session:
-        form_data = {
-            "subject_species": "animals_51u6", 
-            "gene_of_interest": "Knock out gene X for metabolic inhibition.",
-            "promoter_sequence": "Only express under high calcium concentration.",
-            "transduction_level": "subtype",
-            "transduction_description": "Retinal ganglion cells",
-            "groups": [
-                {
-                    "group_name": "Control_Vector",
-                    "subject_count": 3,
-                    "modification_type": "None",
-                },
-                {
-                    "group_name": "Knockout_Group",
-                    "subject_count": 5,
-                    "modification_type": "Knockout",
-                }
-            ]
-        }
-
-        UserExperiments.run_geneweaver_viral_modification(
-            user_id=1,
-            form_data=form_data,
-            session=session
-        )
-
 
 def initialize_database():
     """Create tables in the SQLite database if they don't exist."""
@@ -149,14 +91,72 @@ def test_hunting(species):
     with Session(engine) as session:
         UserActions.collect_animals(user_id=1, species=species, session=session)
 
+def test_geneweaver_dge():
+    with Session(engine) as session:
+        form_data = {
+            "subject_species": "animals_51u6", 
+            "fold_change_threshold": 2,
+            "max_sequences": 5000,
+            "cell_type_level": "subtype",
+            "cell_type_description": "Retinal ganglion cells",
+            "groups": [
+                {
+                    "group_name": "Control",
+                    "subject_ids": "A01, A02, A03, A04, A05",
+                    "subject_count": 5,
+                    "sampling_instructions": "Collect hippocampus tissue 30 min post-light."
+                },
+                {
+                    "group_name": "Treatment",
+                    "subject_ids": "A06, A07, A08, A09, A10",
+                    "subject_count": 5,
+                    "sampling_instructions": "Same as control + expose to drug X."
+                }
+            ]
+        }
+
+        UserExperiments.run_geneweaver_dge_analysis(
+            user_id=1,
+            form_data=form_data,
+            session=session
+        )
+
+def test_geneweaver_viral():
+    with Session(engine) as session:
+        form_data = {
+            "subject_species": "animals_51u6", 
+            "gene_of_interest": "Knock out gene X for metabolic inhibition.",
+            "promoter_sequence": "Only express under high calcium concentration.",
+            "transduction_level": "subtype",
+            "transduction_description": "Retinal ganglion cells",
+            "groups": [
+                {
+                    "group_name": "Control_Vector",
+                    "subject_count": 3,
+                    "modification_type": "None",
+                },
+                {
+                    "group_name": "Knockout_Group",
+                    "subject_count": 5,
+                    "modification_type": "Knockout",
+                }
+            ]
+        }
+
+        UserExperiments.run_geneweaver_viral_modification(
+            user_id=1,
+            form_data=form_data,
+            session=session
+        )
+
 def test_intraspectra_visual():
     with Session(engine) as session:
         form_data = {
-            "subject_species": "animals_51u6_m", 
-            "subject_count": 4,
+            "subject_species": "animals_51u6", 
+            "subject_count": 20,
             "imaging_technique": "Microscopy",
-            "capture_type": "Time_Series",
-            "frame_capture_rate": 60.0,
+            "capture_type": "Single_Frame", # Single_Frame or Time_Series
+           "frame_capture_rate": 60.0,
             "spectral_filter": "Infrared_Thermal",
             "microscopy_technique": "Fluorescence",
             "magnification_level": "40x",
@@ -194,10 +194,10 @@ def test_neurocartographer_trace():
             "subject_count": 3,
             "seed_neuron_locator": "Primary motor neuron innervating Dorsal Wing Elevator.",
             "tracer_transport_type": "Retrograde",
-            "max_neurons_to_map": 120,
+            "max_neurons_to_map": 20,
             "pathway_search_algorithm": (
                 "Follow strongest spike correlation at each synaptic depth up to 4 steps. "
-                "Prioritize high signal-to-noise and least adaptation neurons."
+                "Prioritize high signal-t0o-noise and least adaptation neurons."
             )
         }
 
@@ -343,10 +343,10 @@ if __name__ == "__main__":
     # test_geneweaver_dge()
     # test_advance_one_week()
     # test_intraspectra_visual()
-    # test_intraspectra_rt()
+    test_intraspectra_rt()
     # test_geneweaver_viral()
     # test_neurocartographer_trace()
     # test_panopticam_monitoring()
     # test_polykiln_fabrication()
-    test_virgo_analysis()
+    # test_virgo_analysis()
     # test_virgo_synthesis()

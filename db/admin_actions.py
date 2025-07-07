@@ -115,8 +115,8 @@ class AdminActions:
 
         catalog_items = [
             ItemCatalog(item_key=ArticleEnum.XATTY_CARTRIDGE, display_name="XATTY Cartridge", chuan_cost=70000, wait_weeks=1),
-            ItemCatalog(item_key=ArticleEnum.ZEROPOINT_CARTRIDGE, display_name="ZeroPoint Cartridge", chuan_cost=70000, wait_weeks=1),
-            ItemCatalog(item_key=ArticleEnum.NC_PK1_CARTRIDGE, display_name="NC-PK1 Cartridge", chuan_cost=70000, wait_weeks=1),
+            ItemCatalog(item_key=ArticleEnum.ZEROPOINT_CARTRIDGE, display_name="ZeroPoint Cartridge", chuan_cost=5000, wait_weeks=1),
+            ItemCatalog(item_key=ArticleEnum.NC_PK1_CARTRIDGE, display_name="NC-PK1 Cartridge", chuan_cost=20000, wait_weeks=1),
             ItemCatalog(item_key=ArticleEnum.SMART_FILAMENT_S_CARTRIDGE, display_name="Smart Filament S", chuan_cost=5000, wait_weeks=1),
             ItemCatalog(item_key=ArticleEnum.SMART_FILAMENT_M_CARTRIDGE, display_name="Smart Filament M", chuan_cost=10000, wait_weeks=1),
             ItemCatalog(item_key=ArticleEnum.SMART_FILAMENT_L_CARTRIDGE, display_name="Smart Filament L", chuan_cost=20000, wait_weeks=1),
