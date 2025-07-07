@@ -527,24 +527,26 @@ class UserExperiments:
         is_custom = form_data.get("target_is_custom", False)
         number_of_volumes = form_data.get("number_of_volumes", 1)
 
-        # 🧮 Shifts required
-        base_per_2_shifts = 10 if volume_type == "Static_Volume" else 5
-        shifts_required = math.ceil(subject_count / base_per_2_shifts) * 2
-        if is_custom:
-            shifts_required += 2  # add +2 for custom targets
 
-        animal_shifts = shifts_required * subject_count
+        if volume_type == "Static_Volume":
+            shifts_required = subject_count *3  # 2 shifts per subject
+            animal_shifts = shifts_required * subject_count
+            compute_units = subject_count * 3
+            total_volumes = subject_count 
 
-        # 🧮 Volumes for OCS: assume 1 volume per subject if static, else subject * number_of_volumes
-        total_volumes = (
-            subject_count if volume_type == "Static_Volume"
-            else subject_count * number_of_volumes
-        )
+        elif volume_type == "Dynamic_Volume_Series":
+            shifts_required = subject_count * 5  # 3 shifts per subject
+            animal_shifts = shifts_required 
 
+            total_volumes = subject_count * number_of_volumes  # 5 volumes per subject
+            compute_units = 100 + subject_count * number_of_volumes /10  # max 1000
+
+        
+        # Compute OCS jobs
         ocs_jobs, ocs_cost = UserExperiments.calculate_ocs_cost(
             session=session,
-            unit_count=total_volumes,
-            units_per_job=10
+            unit_count=compute_units,
+            units_per_job=1  # 1000 frames per job
         )
 
         # 🧪 Cartridge check
@@ -572,7 +574,7 @@ class UserExperiments:
         print(f"🧠 Shifts Required:     {shifts_required}")
         print(f"🐁 Animal FTE Required: {(animal_shifts / 30):.2f}")
         print(f"🧪 Cartridge Required:  1 ZeroPoint")
-        print(f"🧠 OCS Units (Volumes): {total_volumes}")
+        print(f"🧠 Total Volumes:       {total_volumes}")
         print(f"🖥️ OCS Jobs:            {ocs_jobs}")
         print(f"💴 OCS Compute Cost:    {ocs_cost} chuan")
         print("===================================================")

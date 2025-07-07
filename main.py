@@ -172,13 +172,13 @@ def test_intraspectra_rt():
     with Session(engine) as session:
         form_data = {
             "subject_species": "animals_51u6",
-            "subject_count": 5,
+            "subject_count": 20,
             "target_substance": "BioFluid_Oxygenation",
             "target_is_custom": False,
-            "volume_capture_type": "Static_Volume",
+            "volume_capture_type": "Dynamic_Volume_Series",  # Static_Volume or Dynamic_Volume_Series
             "region_of_interest": "Thoracic Ganglion Cluster",
             "volume_capture_rate": 0.5,  # only needed for dynamic
-            "number_of_volumes": 20
+            "number_of_volumes": 100
         }
 
         UserExperiments.run_intraspectra_rt(
