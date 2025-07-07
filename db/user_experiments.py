@@ -324,9 +324,15 @@ class UserExperiments:
         species = form_data["subject_species"]
         groups = form_data["groups"]
         total_animals = sum(g["subject_count"] for g in groups)
-        shifts_required = total_animals
+        shifts_required = total_animals * 2 # 2 shifts per sample
         cartridge_field = "xatty_cartridge"
         animal_shifts =shifts_required*total_animals
+
+        ocs_jobs, ocs_cost = UserExperiments.calculate_ocs_cost(            
+            session=session,
+            unit_count=total_animals,  # 3 units per animal
+            units_per_job=1  # 1000 frames per job
+        )       
 
         # 🐁 Animal availability check
         if not UserExperiments.check_animal_required(inventory, species, animal_shifts):
@@ -341,6 +347,10 @@ class UserExperiments:
             print("❌ Not enough TA shifts.")
             return
 
+        if inventory.credits < ocs_cost:
+            print(f"[❌] Not enough credits for OCS jobs: need {ocs_cost}, have {inventory.credits}.")
+            return
+
 
         print("\n[💡] GeneWeaver Viral Vector Modification — Dry Run")
         print("===================================================")
@@ -349,7 +359,8 @@ class UserExperiments:
         print(f"🧠 Shifts Required:     {shifts_required}")
         print(f"🐁 Animal FTE Required: {(animal_shifts / 30):.2f}")
         print(f"🧪 Cartridge Required:  1 XATTY")
-        print("💾 Compute Units:       0")
+        print(f"🖥️ OCS Jobs:            {ocs_jobs}")
+        print(f"💴 OCS Compute Cost:    {ocs_cost} chuan")
         print("===================================================")
         confirm = input("Proceed with booking this experiment? [Y/n] ").strip().lower()
 
@@ -359,6 +370,7 @@ class UserExperiments:
 
         # Deduct resources
         inventory.xatty_cartridge -= 1
+        inventory.credits -= ocs_cost
 
         UserExperiments.deduct_ta_shifts(inventory, shifts_required)
         UserExperiments.deduct_animals(inventory, species, animal_shifts)
