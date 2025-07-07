@@ -8,6 +8,7 @@ from db.models.item_catalog import ItemCatalog
 from db.models.inventory import Inventory
 from db.models.acquisition import AcquisitionType
 from db.models.hunting import AnimalSpecies
+from db.models.user_ledger import UserLedger
 
 
 ACQUISITION_RULES = {
@@ -30,6 +31,46 @@ class UserActions:
     Functions for standard users to interact with the system
     (e.g. placing orders, running experiments).
     """
+    @staticmethod
+    def execute_user_action(
+        session: Session,
+        user_id: int,
+        action_type: str,
+        test_func: callable,
+        book_func: callable,
+        label: str,
+        estimate_cost: float = 0.0,
+        cartridge: str = None
+    ):
+        """
+        Unified wrapper for any user action:
+        1. Runs a test function to check resource availability
+        2. Runs booking logic
+        3. Logs the action in the UserLedger
+        """
+        if not test_func():
+            print("[❌] Resource or logic check failed. Aborting.")
+            return
+
+        result = book_func()
+        session.flush()
+
+        # Optionally update cost and cartridge after booking
+        cost = result.get("cost", estimate_cost)
+        cartridge_used = result.get("cartridge", cartridge)
+
+        # Log the ledger entry
+        session.add(UserLedger(
+            user_id=user_id,
+            action_type=action_type,
+            action_label=label,
+            date=date.today(),
+            time=datetime.now().time(),
+            cost_chuan=cost,
+            cartridge_used=cartridge_used,
+        ))
+        session.commit()
+        print(f"[✔] {label} complete and logged to ledger.")
 
     @staticmethod
     def place_order(
@@ -37,72 +78,58 @@ class UserActions:
         user_id: int,
         article: ArticleEnum,
         acquisition_type: AcquisitionType,
-    ) -> Order:
+    ) -> None:
         """
-        Allows a user to place an order for a cartridge or resource.
-
-        This applies a cooldown and cost multiplier depending on acquisition type.
-
-        Parameters
-        ----------
-        session : Session
-            Active SQLAlchemy session.
-        user_id : int
-            The ID of the user placing the order.
-        article : ArticleEnum
-            The article to order (must match inventory field).
-        acquisition_type : AcquisitionType
-            Priority of acquisition (quick, standard, smart).
-
-        Returns
-        -------
-        Order
-            The created order record.
+        Places an order for a cartridge/resource using the standard test → book → log pattern.
         """
-        # Lookup user
+        # Lookup
         user = session.get(User, user_id)
         if not user:
             raise ValueError(f"User ID {user_id} not found.")
 
-        # Lookup item catalog
-        catalog_item = (
-            session.query(ItemCatalog)
-            .filter(ItemCatalog.item_key == article.value)
-            .first()
-        )
+        catalog_item = session.query(ItemCatalog).filter_by(item_key=article.value).first()
         if not catalog_item:
             raise ValueError(f"Article '{article.value}' not found in catalog.")
 
-        # Apply acquisition rules
-        rules = ACQUISITION_RULES[acquisition_type]
-        cost = catalog_item.chuan_cost * rules["price_factor"]
-        wait_weeks = rules["cooldown"]
-
-        # Deduct credits from inventory (assuming single inventory row)
         inventory = session.query(Inventory).first()
         if not inventory:
             raise RuntimeError("Inventory not initialized.")
 
-        if inventory.credits < cost:
-            raise ValueError(
-                f"Insufficient credits: {inventory.credits:.2f} available, need {cost:.2f}"
+        rules = ACQUISITION_RULES[acquisition_type]
+        cost = catalog_item.chuan_cost * rules["price_factor"]
+        wait_weeks = rules["cooldown"]
+
+        def test():
+            if inventory.credits < cost:
+                print(f"[❌] Not enough credits. Need {cost:.2f}, have {inventory.credits:.2f}")
+                return False
+            return True
+
+        def book():
+            inventory.credits -= cost
+            order = Order(
+                user_id=user_id,
+                date=date.today(),
+                time=datetime.now().time(),
+                article=article,
+                value=cost,
+                wait_weeks=wait_weeks,
+                is_effect=False,
             )
+            session.add(order)
+            return {"cost": cost, "cartridge": article.value, "label": f"Order {article.value}"}
 
-        inventory.credits -= cost
-
-        # Create order record
-        order = Order(
+        UserActions.execute_user_action(
+            session=session,
             user_id=user_id,
-            date=date.today(),
-            time=datetime.now().time(),
-            article=article,
-            value=cost,
-            wait_weeks=wait_weeks,
-            is_effect=False,
+            action_type="Order",
+            test_func=test,
+            book_func=book,
+            label=f"Order {article.value}",
+            estimate_cost=cost,
+            cartridge=article.value
         )
-        session.add(order)
-        session.commit()
-        return order
+
 
     
     @staticmethod

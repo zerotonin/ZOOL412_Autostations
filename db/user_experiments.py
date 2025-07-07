@@ -707,15 +707,16 @@ class UserExperiments:
         total_subjects = sum(group["subject_count"] for group in form_data["experimental_groups"])
         probe_type = form_data.get("probe_type_used", "None")
         monitoring_hours = float(form_data["total_monitoring_hours"])
+        event_count = len(form_data["event_dictionary"])
+        phase_count = len(form_data["phase_sequence"])
 
         # Base shift cost
-        subject_shift_cost = 0.5 if probe_type != "None" else 0.1
-        shifts_required = 3 + (total_subjects * subject_shift_cost) + (monitoring_hours * 0.1)
-        animal_shifts = shifts_required * total_subjects
-
+        subject_shift_cost = (0.5 if probe_type != "None" else 0.1)* total_subjects
+        monitoring_shift_costs = total_subjects * monitoring_hours 
+        shifts_required = subject_shift_cost + monitoring_shift_costs
+        animal_shifts = shifts_required 
         # OCS Cost: 3 base + 1 per event + 0.5 per subject per hour
-        event_count = len(form_data["event_dictionary"])
-        ocs_jobs = 3 + (event_count * 1) + (0.5 * total_subjects * monitoring_hours)
+        ocs_jobs = monitoring_hours * total_subjects * event_count
         ocs_jobs, ocs_cost  = UserExperiments.calculate_ocs_cost(session,ocs_jobs, units_per_job=1)
 
         # Cartridge check
@@ -848,27 +849,33 @@ class UserExperiments:
         elif score <= 8:
             cartridge_field = "smart_filament_m_cartridge"
             cartridge_enum = ArticleEnum.SMART_FILAMENT_M_CARTRIDGE
-            shift_cost = 2
+            shift_cost = 3
             cartridge_name = "M"
         else:
             cartridge_field = "smart_filament_l_cartridge"
             cartridge_enum = ArticleEnum.SMART_FILAMENT_L_CARTRIDGE
-            shift_cost = 3
+            shift_cost = 5
             cartridge_name = "L"
 
-        # OCS Cost: Base 5 + mech tier + elec tier (0/4/8/16)
-        tier_costs = [0, 4, 8, 16]
-        ocs_cost = 5 + tier_costs[mech_tier] + tier_costs[elec_tier]
+        # Shift cost: 1 for S, 3 for M, 5 for L
+        tier_shifts = [0, 1, 2, 3]  # Shifts for mech/elec tiers 0-3
+        shifts_required = shift_cost + tier_shifts[mech_tier] + tier_shifts[elec_tier]
 
-        animal_shifts = shift_cost * 2  # conservative estimate
+        # OCS Cost: Base 5 + mech tier + elec tier 
+        tier_costs = [0, 1, 4, 9]  # Costs for mech/elec tiers 0-3
+        ocs_level = 5 + tier_costs[mech_tier] + tier_costs[elec_tier]
+        ocs_cost = UserExperiments.calculate_ocs_cost(
+            session=session,
+            unit_count=ocs_level,
+            units_per_job=10  # 1 chuan per unit
+        )[1]
+
 
         # Validation
         if getattr(inventory, cartridge_field) < 1:
             print(f"[❌] Not enough {cartridge_name} Smart Filament cartridges.")
             return
-
-        if not UserExperiments.check_animal_required(inventory, species, animal_shifts):
-            return
+    
 
         if not UserExperiments.check_ta_shifts_required(inventory, shift_cost):
             print("❌ Not enough TA shifts.")
@@ -883,7 +890,8 @@ class UserExperiments:
         print("===================================================")
         print(f"🔧 Object:              {name}")
         print(f"📝 Description:         {description[:50]}...")
-        print(f"📦 Size Tier:           {size_tier} ({shift_cost} shifts)")
+        print(f"📦 Size Tier:           {size_tier}")
+        print(f"🧠 Shifts Required:     {shifts_required:.2f}")
         print(f"⚙️ Mechanical Tier:     {mech_tier}")
         print(f"🧠 Electronic Tier:     {elec_tier}")
         print(f"📈 Score:               {score}")
@@ -897,8 +905,7 @@ class UserExperiments:
 
         # Deduct resources
         setattr(inventory, cartridge_field, getattr(inventory, cartridge_field) - 1)
-        UserExperiments.deduct_ta_shifts(inventory, shift_cost)
-        UserExperiments.deduct_animals(inventory, species, animal_shifts)
+        UserExperiments.deduct_ta_shifts(inventory, shifts_required)
         inventory.credits -= ocs_cost
 
         # Log experiment
@@ -942,12 +949,18 @@ class UserExperiments:
         is_new_sample = bool(form_data.get("sample_source_description"))
         theta_requested = form_data.get("request_theta_analysis", False)
 
-        shifts_required = 1 if is_new_sample else 0
-        ocs_cost = 1 if is_new_sample else 0
+        shifts_required = 2 if is_new_sample else 1
+        ocs_job = 1 if is_new_sample else 0.2
+        ocs_jobs, ocs_cost = UserExperiments.calculate_ocs_cost(
+            session=session,
+            unit_count=ocs_job,
+            units_per_job=1  # 1 chuan per job
+        )
         if theta_requested:
-            ocs_cost += 3
+            theta_cost = 8000
+            ocs_cost += theta_cost
 
-        animal_shifts = shifts_required * 2
+        animal_shifts = shifts_required if is_new_sample else 0
 
         if not UserExperiments.check_animal_required(inventory, species, animal_shifts):
             return
@@ -966,7 +979,7 @@ class UserExperiments:
         print(f"🔍 Θ-OSP Consultation: {'Yes' if theta_requested else 'No'}")
         print(f"🧠 Shifts Required: {shifts_required}")
         print(f"🐁 Animal FTE Required: {(animal_shifts / 30):.2f}")
-        print(f"💾 OCS Compute Cost: {ocs_cost} chuan")
+        print(f"💾 OCS Compute Cost: {ocs_cost} chuan including (Θ-OSP {theta_cost})")
         print("======================================")
         confirm = input("Proceed with analysis? [Y/n] ").strip().lower()
         if confirm != "" and confirm != "y":
@@ -1012,15 +1025,20 @@ class UserExperiments:
         known = bool(form_data.get("target_compound_identifier"))
         is_novel = not known
         shifts_required = 3
-        ocs_cost = 15 if is_novel else 0
+        ocs_job = 1 if is_novel else 0
+
+        ocs_jobs, ocs_cost = UserExperiments.calculate_ocs_cost(
+            session=session,
+            unit_count=ocs_job,
+            units_per_job=1  # 1 chuan per job
+        )
+
         cartridge_field = "dupont_cartridge"
-        animal_shifts = shifts_required * 2
 
         if getattr(inventory, cartridge_field) < 1:
             print("[❌] Not enough DuPont OmniChem Blue Capsules.")
             return
-        if not UserExperiments.check_animal_required(inventory, species, animal_shifts):
-            return
+        
         if not UserExperiments.check_ta_shifts_required(inventory, shifts_required):
             print("❌ Not enough TA shifts.")
             return
@@ -1033,7 +1051,6 @@ class UserExperiments:
         print("======================================")
         print(f"🔬 Type: {'Novel (with Θ-OSP)' if is_novel else 'Known'}")
         print(f"🧠 Shifts Required: {shifts_required}")
-        print(f"🐁 Animal FTE Required: {(animal_shifts / 30):.2f}")
         print(f"💊 Cartridge: DuPont OmniChem Blue Capsule")
         print(f"💾 OCS Compute Cost: {ocs_cost}")
         print("======================================")
@@ -1044,7 +1061,6 @@ class UserExperiments:
 
         inventory.dupont_cartridge -= 1
         UserExperiments.deduct_ta_shifts(inventory, shifts_required)
-        UserExperiments.deduct_animals(inventory, species, animal_shifts)
         inventory.credits -= ocs_cost
 
         exp = UserExperiments.log_experiment(
