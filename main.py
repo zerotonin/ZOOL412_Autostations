@@ -110,15 +110,15 @@ def seed_prices():
     with Session(engine) as session:
         AdminActions.initialize_item_catalog(session)
 
-def test_order():
+def test_order(user_article):
     with Session(engine) as session:
-        order = UserActions.place_order(
+        UserActions.place_order(
             session=session,
             user_id=1,
-            article=ArticleEnum.XATTY_CARTRIDGE,
+            article=user_article,
             acquisition_type=AcquisitionType.QUICK,
         )
-        print(f"Order placed: {order.article} for {order.value:.2f} chuan")
+
 
 
 def test_juicing():
@@ -213,16 +213,16 @@ def test_panopticam_monitoring():
             "subject_species": "animals_51u6",
             "experiment_run_id": "Run_2025_07_A",
             "probe_type_used": "pH",  # Try "None" to reduce shift cost
-            "total_monitoring_hours": 2.0,  # Combined across phases
+            "total_monitoring_hours": 0.5,  # Combined across phases
 
             "experimental_groups": [
                 {
                     "group_name": "Control",
-                    "subject_count": 4,
+                    "subject_count": 20,
                 },
                 {
                     "group_name": "Stimulus_A",
-                    "subject_count": 4,
+                    "subject_count": 20,
                 }
             ],
 
@@ -288,7 +288,7 @@ def test_polykiln_fabrication():
             ),
             "assessed_size_tier": "M",
             "assessed_mechanical_tier": 2,
-            "assessed_electronic_tier": 2
+            "assessed_electronic_tier": 0
         }
 
         UserExperiments.run_polykiln_fabrication(
@@ -331,7 +331,8 @@ if __name__ == "__main__":
     seed_test_users()
     seed_prices()
 
-    # test_order()
+    test_order(ArticleEnum.MAMR_REEL_CARTRDIGE)
+    test_order(ArticleEnum.SMART_FILAMENT_M_CARTRIDGE)
     # test_juicing()
     # test_advance_one_week()
     # test_juicing()
@@ -345,7 +346,7 @@ if __name__ == "__main__":
     # test_intraspectra_rt()
     # test_geneweaver_viral()
     # test_neurocartographer_trace()
-    test_panopticam_monitoring()
-    test_polykiln_fabrication()
+    # test_panopticam_monitoring()
+    # test_polykiln_fabrication()
     test_virgo_analysis()
-    test_virgo_synthesis()
+    # test_virgo_synthesis()
