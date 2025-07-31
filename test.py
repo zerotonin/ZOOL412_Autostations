@@ -225,7 +225,36 @@ def compute_quadrant_percentages(positions, dt=DT):
         100 * np.sum(quad_IV)  / total
     ]
 
+def compute_quadrant_times(positions, dt=DT):
+    """
+    Calculate the time spent in each quadrant.
 
+    :param positions: np.ndarray of shape (N, 2), trajectory positions.
+    :param dt: Timestep duration in seconds.
+    :return: dict with times in seconds for each quadrant.
+    """
+    quad_I   = (positions[:,0] > 0) & (positions[:,1] > 0)
+    quad_II  = (positions[:,0] < 0) & (positions[:,1] > 0)
+    quad_III = (positions[:,0] < 0) & (positions[:,1] < 0)
+    quad_IV  = (positions[:,0] > 0) & (positions[:,1] < 0)
+
+    n_I   = np.sum(quad_I)
+    n_II  = np.sum(quad_II)
+    n_III = np.sum(quad_III)
+    n_IV  = np.sum(quad_IV)
+
+    times = {
+        "Quadrant I (upper right)":    n_I * dt,
+        "Quadrant II (upper left)":    n_II * dt,
+        "Quadrant III (lower left)":   n_III * dt,
+        "Quadrant IV (lower right)":   n_IV * dt,
+    }
+
+    total_time = len(positions) * dt
+    print("Time spent in each quadrant:")
+    for k, v in times.items():
+        print(f"  {k:26}: {v:.1f} s ({100*v/total_time:.1f}%)")
+    return times
 
 
 def retrofuturistic_data_log(positions, dt, subject_number=1):
@@ -262,6 +291,7 @@ def retrofuturistic_data_log(positions, dt, subject_number=1):
         "||" + " " * 82 + "||\n"
         "++" + "="*82 + "++\n"
         "\nSYSTEM NOMENCLATURE:\n"
+        "  - Species: 51U6-M\n"
         f"  - Subject: {subject_number}\n"
         "  - Data Stream: Position (X,Y), Quadrant\n\n"
         "COORDINATE SYSTEM REFERENCE:\n"
@@ -331,6 +361,9 @@ for animal in range(1, N_ANIMALS + 1):
     quad_percents = compute_quadrant_percentages(positions, dt=DT)
     quad_table.append([animal] + quad_percents)
 
+    # --- RETRO LOG ---
+    retrofuturistic_data_log(positions, DT, subject_number=animal)
+
     # --- PNG ---
     plot_trajectory(positions, subject_number=animal)
 
@@ -339,28 +372,6 @@ for animal in range(1, N_ANIMALS + 1):
     full_array = np.column_stack((positions, led_wavelengths))
     np.savetxt(f"subject_{animal}_trajectory.csv", full_array, delimiter=",", header="x,y,LED_wavelength_nm", comments='')
 
-    # --- Short TXT (retro-style per animal) ---
-    txt = (
-        "++" + "="*54 + "++\n"
-        "||" + " " * 54 + "||\n"
-        "||   KESSLER PANORBITAL INDUSTRIES - BIO-MONITORING DIVISION   ||\n"
-        "||" + " " * 54 + "||\n"
-        "||           PANOPTICAM INDIVIDUAL QUADRANT SUMMARY            ||\n"
-        "||" + " " * 54 + "||\n"
-        f"||   SESSION DATE: {date_str}     SPECIES: {ANIMAL_SPECIES:<8}      ||\n"
-        f"||   SUBJECT: {animal:2d}                                         ||\n"
-        "++" + "="*54 + "++\n"
-        "\nQUADRANT OCCUPANCY:\n"
-        "  I   = (x > 0,  y > 0)   II  = (x < 0,  y > 0)\n"
-        "  III = (x < 0,  y < 0)   IV  = (x > 0,  y < 0)\n"
-        "\n+-----------+-----------+-----------+-----------+\n"
-        "| Quad I %  | Quad II % | Quad III% | Quad IV % |\n"
-        "+-----------+-----------+-----------+-----------+\n"
-        f"| {quad_percents[0]:8.2f} | {quad_percents[1]:8.2f} | {quad_percents[2]:8.2f} | {quad_percents[3]:8.2f} |\n"
-        "+-----------+-----------+-----------+-----------+\n"
-    )
-    with open(f"subject_{animal}_summary.txt", "w") as f:
-        f.write(txt)
 
 # --- Grand summary table for all animals ---
 quad_table = np.array(quad_table)
